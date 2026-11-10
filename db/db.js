@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 
 dotenv.config({
-  path: path.resolve(import.meta.dirname, ".env"),
+  path: path.resolve(import.meta.dirname, "../.env"),
 });
 
 pg.types.setTypeParser(1082, (value) => value);

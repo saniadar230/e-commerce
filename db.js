@@ -1,26 +1,23 @@
-import { Client } from "pg"
-import pg from "pg"
+import { Pool } from "pg";
+import pg from "pg";
+import dotenv from "dotenv";
+import path from "path";
 
+dotenv.config({
+  path: path.resolve(import.meta.dirname, ".env"),
+});
 
-pg.types.setTypeParser(1082, (value) => value)
+pg.types.setTypeParser(1082, (value) => value);
 
 // object containing the DB configuration
-const client = new Client({
-  host: "localhost",
-  port: 5433,
-  database: "postgres",
-  user: "postgres",
-  password: "qwerty"
-})
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+});
 
+pool.on("error", (err) => console.error("Idle client error:", err));
 
-client.connect()
-  .then(() => {
-    console.log("Database connected")
-  })
-  .catch((error) => {
-    console.log("error connecting DB", error.message)
-  })
-
-
-export default client;
+export default pool;

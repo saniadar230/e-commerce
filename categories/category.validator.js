@@ -19,3 +19,8 @@ export const listQuerySchema = Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(10),
 });
+
+
+export const updateCategorySchema = Joi.object({
+    name: Joi.string().trim().min(1).max(255),
+}).min(1);

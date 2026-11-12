@@ -16,6 +16,7 @@ class CategoryController {
         // IMPORTANT: routes pass controller.create without the object (router.post("/", controller.create))
         // so `this` would be lost -- bind keeps `this` pointing to the controller
         this.create = this.create.bind(this)
+        this.updateCategories = this.updateCategories.bind(this)
         this.getAll = this.getAll.bind(this)
         this.getById = this.getById.bind(this)
         this.delete = this.delete.bind(this)
@@ -54,6 +55,17 @@ class CategoryController {
             next(error)
         }
 
+    }
+
+    async updateCategories(req, res, next) {
+        try {
+            const updatedData = await this.service.updateCategories(req.params.id, req.body)
+
+            return res.status(200).json({ updatedData });
+
+        } catch (error) {
+            next(error)
+        }
     }
 
     async delete(req, res, next) {

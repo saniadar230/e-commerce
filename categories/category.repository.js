@@ -13,7 +13,7 @@ export class CategoryRepository extends BaseRepository {
 
     // the repository owns its table name, so a caller can't pass a wrong one
     constructor() {
-        super("categories")
+        super("categories", ["name", "parent_id"])
     }
 
 

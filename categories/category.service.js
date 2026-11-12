@@ -62,6 +62,16 @@ class CategoryService {
         return this.repository.create(data)
     }
 
+    async updateCategories(id, data) {
+        const updated = await this.repository.patch(id, data)
+
+        if (!updated) {
+            throw new NotFoundError("Category not found");
+        }
+
+        return updated;
+    }
+
     async delete(id) {
         const deleted = await this.repository.delete(id)
 

@@ -16,15 +16,15 @@
 import pool from "../db/db.js"
 
 export class BaseRepository {
-    constructor(tableName) {
+    constructor(tableName, updatableColumns = []) {
         if (new.target === BaseRepository) {
             throw new Error("stop! don't use it just extends it")
         }
-
         // How do we store a value inside an object in JavaScript
         // stores table name as an instance property
 
-        this.tableName = tableName
+        this.tableName = tableName;
+        this.updatedColumns = updatableColumns;
     }
 
     // ===== paginated getAll =====
@@ -67,6 +67,33 @@ export class BaseRepository {
 
     async create() {
         throw new Error("create() must be implemented by the child class");
+    }
+
+
+    // ========== patch
+    async patch(id, data) {
+        // keep only the allowed colums id and path are not allowed to update ======== They're excluded only if they aren't included in updatedColumns.
+        const keys = Object.keys(data).filter((k) => this.updatedColumns.includes(k))
+
+
+        console.log("Request data:", data);
+        console.log("Allowed columns:", this.updatedColumns);
+        console.log("Matched keys:", keys);
+
+        if (keys.length === 0) {
+            throw new Error("No valid fields provided for update");
+        }
+
+        // dynamic generated sql --
+        const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
+
+        const sql = `update ${this.tableName} set ${setClause} where id=$${keys.length + 1} returning *`;
+
+        const values = [...keys.map((key) => data[key]), id];
+
+        const result = await pool.query(sql, values);
+
+        return result.rows[0] ?? null
     }
 
     // ===== generic delete =====

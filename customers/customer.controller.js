@@ -33,33 +33,33 @@ export async function getCustomerById(req, res, next) {
   );
 }
 
-export async function getCustomerOrders(req, res, next) {
-  const { id } = req.params;
-  const { pageNo = 1, pageSize = 10, sortBy = "DESC" } = req.query;
+// export async function getCustomerOrders(req, res, next) {
+//   const { id } = req.params;
+//   const { pageNo = 1, pageSize = 10, sortBy = "DESC" } = req.query;
 
-  const response = await customerService.getCustomerOrders(
-    id,
-    pageNo,
-    pageSize,
-    sortBy
-  );
+//   const response = await customerService.getCustomerOrders(
+//     id,
+//     pageNo,
+//     pageSize,
+//     sortBy
+//   );
 
-  return successReponse(
-    res,
-    response.data,
-    200,
-    "Orders were retrieved successfully!",
-    response.pagination
-  );
-}
+//   return successReponse(
+//     res,
+//     response.data,
+//     200,
+//     "Orders were retrieved successfully!",
+//     response.pagination
+//   );
+// }
 
 export async function createCustomer(req, res, next) {
-  const { customer_name, email, city } = req.body;
+  const { name, email, delivery_address } = req.body;
 
   const response = await customerService.createCustomer(
-    customer_name,
+    name,
     email,
-    city
+    delivery_address
   );
 
   return successReponse(
@@ -70,13 +70,13 @@ export async function createCustomer(req, res, next) {
   );
 }
 
-export async function updateCustomer(req, res, next) {
-  const { customer_name, city } = req.body;
+export async function updateCustomer(req, res) {
+  const { name, delivery_address } = req.body;
   const { id } = req.params;
 
   let updateData = {};
-  if (customer_name) updateData.customer_name = customer_name;
-  if (city) updateData.city = city;
+  if (name) updateData.name = name;
+  if (delivery_address) updateData.delivery_address = delivery_address;
 
   const response = await customerService.updateCustomer(id, updateData);
 

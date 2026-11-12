@@ -1,11 +1,14 @@
 import Joi from "joi";
 
 export const idSchema = Joi.object({
-  id: Joi.number().positive().required().messages({
-    "number.base": "Id must be a number",
-    "number.positive": "Id must be positive",
-    "any.required": "Id is required",
-  }),
+  id: Joi.string()
+    .guid({ version: ["uuidv4"] })
+    .required()
+    .messages({
+      "string.base": "ID must be a string",
+      "string.guid": "ID must be a valid UUIDv4",
+      "any.required": "ID is required",
+    }),
 });
 
 export const getListSchema = Joi.object({

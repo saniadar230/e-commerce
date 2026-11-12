@@ -1,32 +1,33 @@
-import { sql } from "../db.js";
 import { removeResponseFields } from "../helperFunctions.js";
 import { ValidationError, NotFoundError, ConflictError } from "../apiError.js";
+import pool from "../db/db.js";
+import formatForUpdate from "../formatForUpdate.js";
 
 export async function getAllCustomers(pageNo, pageSize, sortBy, search) {
-  const totalCount = await sql`SELECT COUNT(*) FROM customers c 
-      WHERE c.customer_name ILIKE ${search + "%"} OR c.email ILIKE ${
-    search + "%"
-  } AND is_deleted = false`;
+  const totalCount = await pool.query(
+    `SELECT COUNT(*) FROM customers
+      WHERE (name ILIKE $1 OR email ILIKE $1) AND is_deleted = false`,
+    [`${search}%`]
+  );
 
-  const totalPages = Math.ceil(totalCount[0].count / pageSize);
+  const totalPages = Math.ceil(Number(totalCount.rows[0].count) / pageSize);
   if (pageNo > totalPages)
     throw new ValidationError(
       `Page number cannot be greater than total number of pages: ${totalPages}`
     );
 
-  const customers = await sql`SELECT * FROM customers c 
-      WHERE (c.customer_name ILIKE ${search + "%"} OR c.email ILIKE ${
-    search + "%"
-  }) AND is_deleted = false
-      ORDER BY c.customer_name ${sql.unsafe(sortBy)} LIMIT ${pageSize} OFFSET ${
-    (pageNo - 1) * pageSize
-  }`;
+  const customers = await pool.query(
+    `SELECT * FROM customers c 
+      WHERE (c.name ILIKE $1 OR c.email ILIKE $1) AND is_deleted = false
+      ORDER BY c.name ${sortBy.toUpperCase()} LIMIT $2 OFFSET $3`,
+    [`${search}%`, pageSize, (pageNo - 1) * pageSize]
+  );
 
-  const totalRecords = totalCount[0].count;
+  const totalRecords = totalCount.rows[0].count;
   const hasNextPage = pageNo < totalPages;
   const hasPreviousPage = pageNo !== 1;
 
-  const finalResponse = removeResponseFields(customers);
+  const finalResponse = removeResponseFields(customers.rows);
 
   return {
     pagination: {
@@ -42,85 +43,98 @@ export async function getAllCustomers(pageNo, pageSize, sortBy, search) {
 }
 
 export async function getCustomerById(id) {
-  const response =
-    await sql`SELECT * FROM customers c WHERE c.customer_id = ${id} AND is_deleted = false`;
+  const response = await pool.query(
+    `SELECT * FROM customers c WHERE c.id = $1 AND is_deleted = false`,
+    [id]
+  );
 
-  if (response.length === 0)
+  if (response.rows.length === 0)
     throw new NotFoundError(`Customer with Id:${id} does not exist`);
 
-  console.log(response);
-
-  const finalResponse = removeResponseFields(response);
-
-  console.log(finalResponse);
+  const finalResponse = removeResponseFields(response.rows);
 
   return finalResponse;
 }
 
-export async function getCustomerOrders(id, pageNo, pageSize, sortBy) {
-  const customer =
-    await sql`SELECT customer_id FROM customers WHERE customer_id = ${id} AND is_deleted = false`;
+// export async function getCustomerOrders(id, pageNo, pageSize, sortBy) {
+//   const customer = await client.query(
+//     `SELECT id FROM customers WHERE id = $1 AND is_deleted = false`,
+//     [id]
+//   );
 
-  if (customer.length === 0)
-    throw new NotFoundError(`Customer with Id:${id} does not exist`);
+//   if (customer.length === 0)
+//     throw new NotFoundError(`Customer with Id:${id} does not exist`);
 
-  const totalCount =
-    await sql`SELECT COUNT(*)  FROM orders o WHERE o.customer_id = ${id} AND is_deleted = false`;
+//   const totalCount = await client.query(
+//     `SELECT COUNT(*)  FROM orders o WHERE o.customer_id = $1 AND is_deleted = false`,
+//     id
+//   );
 
-  const totalPages = Math.ceil(totalCount[0].count / pageSize);
-  if (pageNo > totalPages)
-    throw new ValidationError(
-      `Page number cannot be greater than total number of pages: ${totalPages}`
-    );
+//   const totalPages = Math.ceil(totalCount[0].count / pageSize);
+//   if (pageNo > totalPages)
+//     throw new ValidationError(
+//       `Page number cannot be greater than total number of pages: ${totalPages}`
+//     );
 
-  const orders =
-    await sql`SELECT * FROM orders o WHERE o.customer_id = ${id} ORDER BY order_date 
-    WHERE is_deleted = false
-    ${sql.unsafe(sortBy)} LIMIT ${pageSize} OFFSET ${(pageNo - 1) * pageSize}`;
+//   const orders = await client.query(
+//     `SELECT * FROM orders o WHERE o.customer_id = $1 ORDER BY order_date
+//     WHERE is_deleted = false
+//     ${sortBy.toUppercase()} LIMIT $2 OFFSET $3`,
+//     [id, pageSize, (pageNo - 1) * pageSize]
+//   );
 
-  const totalRecords = totalCount[0].count;
-  const hasNextPage = pageNo < totalPages;
-  const hasPreviousPage = pageNo !== 1;
+//   const totalRecords = totalCount[0].count;
+//   const hasNextPage = pageNo < totalPages;
+//   const hasPreviousPage = pageNo !== 1;
 
-  const finalResponse = removeResponseFields(orders);
+//   const finalResponse = removeResponseFields(orders);
 
-  return {
-    pagination: {
-      pageNo,
-      pageSize,
-      totalRecords,
-      totalPages,
-      hasNextPage,
-      hasPreviousPage,
-    },
-    data: finalResponse,
-  };
-}
+//   return {
+//     pagination: {
+//       pageNo,
+//       pageSize,
+//       totalRecords,
+//       totalPages,
+//       hasNextPage,
+//       hasPreviousPage,
+//     },
+//     data: finalResponse,
+//   };
+// }
 
-export async function createCustomer(customer_name, email, city) {
-  const customer =
-    await sql`SELECT * FROM customers WHERE email=${email} AND is_deleted = false`;
+export async function createCustomer(name, email, delivery_address) {
+  const customer = await pool.query(
+    `SELECT * FROM customers WHERE email= $1 AND is_deleted = false`,
+    [email]
+  );
 
-  if (customer.length > 0)
+  if (customer.rows.length > 0)
     throw new ConflictError(`Customer with this email already exists`);
 
-  const response =
-    await sql`INSERT into customers (customer_name,email,city) values (${customer_name.trim()}, ${email.trim()}, ${city.trim()}) RETURNING *`;
+  const response = await pool.query(
+    `INSERT INTO customers (name, email, delivery_address)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [name, email, delivery_address]
+  );
 
-  const finalResponse = removeResponseFields(response);
+  const finalResponse = removeResponseFields(response.rows);
 
   return finalResponse;
 }
 
 export async function updateCustomer(id, updateData) {
-  const response = await sql`Update customers SET ${sql(
-    updateData
-  )} WHERE customer_id = ${id} AND is_deleted = false RETURNING *`;
+  const setClause = formatForUpdate(updateData);
 
-  if (response.length === 0)
+  const response = await pool.query(
+    `Update customers SET ${setClause} WHERE id = $1 AND is_deleted = false RETURNING *`,
+    [id]
+  );
+
+  if (response.rows.length === 0)
     throw new NotFoundError(`Customer with Id:${id} does not exist`);
 
-  const finalResponse = removeResponseFields(response);
+  const finalResponse = removeResponseFields(response.rows);
 
   return finalResponse;
 }
@@ -131,10 +145,17 @@ export async function deleteCustomer(id) {
     deleted_at: new Date(),
   };
 
-  const response = await sql`Update customers SET ${sql(
-    updateDeletedFields
-  )} WHERE customer_id = ${id} AND is_deleted = false RETURNING *`;
+  const columns = Object.keys(updateDeletedFields);
 
-  if (response.length === 0)
-    throw new NotFoundError(`Customer with Id:${id} does not exist`);
+  const setClause = columns
+    .map((key) => format("%I = %L", key, updateDeletedFields[key]))
+    .join(", ");
+
+  const response = await pool.query(
+    `Update customers SET ${setClause} WHERE id = $1 AND is_deleted = false RETURNING *`,
+    [id]
+  );
+
+  if (response.rows.length === 0)
+    throw new NotFoundError(`Customer with ID:${id} does not exist`);
 }

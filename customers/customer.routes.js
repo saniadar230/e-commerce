@@ -27,11 +27,11 @@ customerRouter
   )
   .delete(validate(idSchema, "params"), customerController.deleteCustomer);
 
-customerRouter.get(
-  "/:id/orders",
-  validate(idSchema, "params"),
-  validate(getListSchema, "query"),
-  customerController.getCustomerOrders
-);
+// customerRouter.get(
+//   "/:id/orders",
+//   validate(idSchema, "params"),
+//   validate(getListSchema, "query"),
+//   customerController.getCustomerOrders
+// );
 
 export default customerRouter;

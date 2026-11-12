@@ -1,5 +1,8 @@
 import express from "express";
-// import customerRouter from "./customers/customer.routes.js";
+import customerRouter from "./customers/customer.routes.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 // import productRouter from "./products/product.routes.js";
 // import orderRouter from "./orders/order.routes.js";
 
@@ -8,7 +11,7 @@ const app = express();
 app.use(express.json());
 
 // Customer Routes
-// app.use("/customers", customerRouter);
+app.use("/customers", customerRouter);
 // app.use("/products", productRouter);
 // app.use("/orders", orderRouter);
 
@@ -17,7 +20,7 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  return res.status(err.statusCode || 500).son({
+  return res.status(err.statusCode || 500).json({
     type: "about:blank",
     status: err.statusCode || 500,
     //A short, human-readable summary of the problem type. It should not change from occurrence to occurrence of the problem, except for purposes of localization.
@@ -31,6 +34,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(3000, () => {
-  console.log(`Server is listening on PORT: 3000`);
+app.listen(process.env.PORT, () => {
+  console.log(`Server is listening on PORT: ${process.env.PORT}`);
 });

@@ -1,7 +1,7 @@
 import { removeResponseFields } from "../helperFunctions.js";
 import { ValidationError, NotFoundError, ConflictError } from "../apiError.js";
 import pool from "../db/db.js";
-import formatForUpdate from "../formatForUpdate.js";
+import { formatForUpdate } from "../formatForUpdate.js";
 
 export async function getAllCustomers(pageNo, pageSize, sortBy, search) {
   const totalCount = await pool.query(

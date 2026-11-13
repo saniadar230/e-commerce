@@ -1,5 +1,7 @@
 import express from "express";
 import customerRouter from "./customers/customer.routes.js";
+import cartRouter from "./cart/cart.routes.js";
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -12,6 +14,8 @@ app.use(express.json());
 
 // Customer Routes
 app.use("/customers", customerRouter);
+app.use("/cart", cartRouter);
+
 // app.use("/products", productRouter);
 // app.use("/orders", orderRouter);
 

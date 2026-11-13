@@ -27,7 +27,7 @@ export const validate = (schema, reqProp = "body") => {
         };
       });
 
-      next(
+      return next(
         new ValidationError(
           `The request ${reqProp} contained ${errorsArray.length} validation ${
             errorsArray.length === 1 ? "error" : "errors"

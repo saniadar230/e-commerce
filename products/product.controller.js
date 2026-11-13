@@ -1,77 +1,85 @@
-import * as productService from "./product.service.js";
-import { successReponse } from "../apiResponse.js";
+// ========= productController ============
+// read the data from req
+// call the service
+// sends the res
 
-export async function getAllProducts(req, res, next) {
-  const { pageNo = 1, pageSize = 10, sortBy = "asc" } = req.query;
+import { productService } from "./product.service.js";
 
-  const response = await productService.getAllProducts(
-    pageNo,
-    pageSize,
-    sortBy
-  );
 
-  return successReponse(
-    res,
-    response.data,
-    200,
-    "Products were retrieved successfully!",
-    response.pagination
-  );
+class ProductController {
+  constructor(service) {
+    this.service = service
+
+    // routes lose `this` -> bind each method to ITSELF (name on the left = name on the right)
+    this.create = this.create.bind(this)
+    this.getAll = this.getAll.bind(this)
+    this.getById = this.getById.bind(this)
+    this.update = this.update.bind(this)
+    this.delete = this.delete.bind(this)
+  }
+
+  // POST /products
+  async create(req, res, next) {
+    try {
+      const product = await this.service.create(req.body)
+
+      return res.status(201).json({
+        message: "product created successfully",
+        data: product
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  // GET /products?page=1&limit=10&category_id=3
+  async getAll(req, res, next) {
+    try {
+      // result = { data, meta }
+      const result = await this.service.findAll(req.query)
+
+      return res.status(200).json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  // GET /products/:id
+  async getById(req, res, next) {
+    try {
+      const product = await this.service.findById(req.params.id)
+
+      return res.status(200).json({ data: product })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  // PATCH /products/:id
+  async update(req, res, next) {
+    try {
+      const product = await this.service.update(req.params.id, req.body)
+
+      return res.status(200).json({
+        message: "product updated successfully",
+        data: product
+      })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  // DELETE /products/:id
+  async delete(req, res, next) {
+    try {
+      const isDeleted = await this.service.delete(req.params.id)
+
+      // 200 
+      return res.status(200).json({ isDeleted })
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
-export async function getProductById(req, res, next) {
-  const { id } = req.params;
-
-  const response = await productService.getProductById(id);
-
-  return successReponse(
-    res,
-    response,
-    200,
-    "Product was retrieved successfully!"
-  );
-}
-
-export async function createProduct(req, res, next) {
-  const { product_name, category, price } = req.body;
-
-  const response = await productService.createProduct(
-    product_name,
-    category,
-    price
-  );
-
-  return successReponse(
-    res,
-    response,
-    201,
-    "Product was created successfully!"
-  );
-}
-
-export async function updateProduct(req, res, next) {
-  const { product_name, category, price } = req.body;
-  const { id } = req.params;
-
-  let updateData = {};
-  if (product_name) updateData.product_name = product_name;
-  if (category) updateData.category = category;
-  if (price) updateData.price = price;
-
-  const response = await productService.updateProduct(id, updateData);
-
-  return successReponse(
-    res,
-    response,
-    200,
-    "Product was updated successfully!"
-  );
-}
-
-export async function deleteProduct(req, res, next) {
-  const { id } = req.params;
-
-  await productService.deleteProduct(id);
-
-  return successReponse(res, {}, 204, "Product was deleted successfully!");
-}
+export const productController = new ProductController(productService)

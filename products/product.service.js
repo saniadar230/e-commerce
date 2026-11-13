@@ -1,84 +1,102 @@
-import { sql } from "../db.js";
-import { removeResponseFields } from "../helperFunctions.js";
-import { ValidationError, NotFoundError, ConflictError } from "../apiError.js";
+// ======== ProductService ===========
+// product depends on category (products.category_id) -> service needs TWO repositories
+// both are injected through the constructor (dependency injection)
 
-export async function getAllProducts(pageNo, pageSize, sortBy) {
-  const totalCount =
-    await sql`SELECT COUNT(*) FROM products WHERE is_deleted = false`;
+import { NotFoundError } from "../apiError.js";
+import { ProductRepository } from "./product.repository.js";
+import { CategoryRepository } from "../categories/category.repository.js";
 
-  const totalPages = Math.ceil(totalCount[0].count / pageSize);
-  if (pageNo > totalPages)
-    throw new ValidationError(
-      `Page number cannot be greater than total number of pages: ${totalPages}`
-    );
 
-  const products =
-    await sql`SELECT * FROM products p WHERE is_deleted = false ORDER BY p.product_name 
-    ${sql.unsafe(sortBy)} LIMIT ${pageSize} OFFSET ${(pageNo - 1) * pageSize}`;
+class ProductService {
+  constructor(productRepository, categoryRepository) {
+    this.repository = productRepository;
+    this.categoryRepository = categoryRepository;
+  }
 
-  const totalRecords = totalCount[0].count;
-  const hasNextPage = pageNo < totalPages;
-  const hasPreviousPage = pageNo !== 1;
+  // ===== relationship check (used by create, update and list) =====
+  // product can only belong to a category that exists
+  async #ensureCategoryExists(categoryId) {
+    const category = await this.categoryRepository.findById(categoryId);
 
-  const finalResponse = removeResponseFields(products);
+    if (!category) {
+      throw new NotFoundError("category not found");
+    }
+  }
 
-  return {
-    pagination: {
-      pageNo,
-      pageSize,
-      totalRecords,
-      totalPages,
-      hasNextPage,
-      hasPreviousPage,
-    },
-    data: finalResponse,
-  };
+  async create(data) {
+    // 1. category must exist
+    await this.#ensureCategoryExists(data.category_id);
+
+    // 2. then create the product
+    return this.repository.create(data);
+  }
+
+  // ===== paginated list (+ optional category filter) =====
+  async findAll(query = {}) {
+    const page = Math.max(parseInt(query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(query.limit, 10) || 10, 1), 100);
+    const offset = (page - 1) * limit;
+
+    // category_id is optional -> null means "no filter"
+    const categoryId = parseInt(query.category_id, 10) || null;
+
+    // filtering by a category that doesn't exist -> 404 (not an empty list)
+    if (categoryId !== null) {
+      await this.#ensureCategoryExists(categoryId);
+    }
+
+    const { data, total } = await this.repository.findAll({ limit, offset, categoryId });
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findById(id) {
+    const product = await this.repository.findById(id);
+
+    if (!product) {
+      throw new NotFoundError("product not found");
+    }
+
+    return product;
+  }
+
+  async update(id, data) {
+    // moving the product to another category -> that category must exist
+    if (data.category_id !== undefined) {
+      await this.#ensureCategoryExists(data.category_id);
+    }
+
+    const updated = await this.repository.patch(id, data);
+
+    if (!updated) {
+      throw new NotFoundError("product not found");
+    }
+
+    return updated;
+  }
+
+  async delete(id) {
+    const deleted = await this.repository.delete(id);
+
+    if (!deleted) {
+      throw new NotFoundError("product not found");
+    }
+
+    return deleted;
+  }
 }
 
-export async function getProductById(id) {
-  const response =
-    await sql`SELECT * FROM products p WHERE p.product_id = ${id} AND is_deleted = false`;
 
-  if (response.length === 0)
-    throw new ValidationError(`Product with Id:${id} does not exist`);
+// instances: both repositories are given to the service ----- dependency injection
+const productRepository = new ProductRepository();
+const categoryRepository = new CategoryRepository();
 
-  const finalResponse = removeResponseFields(response);
-
-  return finalResponse;
-}
-
-export async function createProduct(product_name, category, price) {
-  const response =
-    await sql`INSERT into products (product_name,category,price) values (${product_name}, ${category}, ${price}) RETURNING *`;
-
-  const finalResponse = removeResponseFields(response);
-
-  return finalResponse;
-}
-
-export async function updateProduct(id, updateData) {
-  const response = await sql`Update products SET ${sql(
-    updateData
-  )} WHERE product_id = ${id} AND is_deleted = false RETURNING *`;
-
-  if (response.length === 0)
-    throw new NotFoundError(`Product with Id:${id} does not exist`);
-
-  const finalResponse = removeResponseFields(response);
-
-  return finalResponse;
-}
-
-export async function deleteProduct(id) {
-  const updateDeletedFields = {
-    is_deleted: true,
-    deleted_at: new Date(),
-  };
-
-  const response = await sql`Update products SET ${sql(
-    updateDeletedFields
-  )} WHERE product_id = ${id} AND is_deleted = false RETURNING *`;
-
-  if (response.length === 0)
-    throw new NotFoundError(`Product with Id:${id} does not exist`);
-}
+export const productService = new ProductService(productRepository, categoryRepository);

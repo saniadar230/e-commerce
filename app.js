@@ -8,6 +8,8 @@ import productRouter from "./products/product.routes.js";
 import attributeRoutes from './attributes/attribute.routes.js'
 import attributeValueRoutes from './attributes/attributeValue.routes.js'
 
+import regionRoutes from "./regions/region.routes.js"
+
 const app = express();
 
 app.use(express.json());
@@ -26,6 +28,9 @@ app.use("/products", productRouter);
 
 app.use("/attributes", attributeRoutes);
 app.use("/attribute-values", attributeValueRoutes);
+
+
+app.use("/regions", regionRoutes);
 
 
 app.use((req, res) => {

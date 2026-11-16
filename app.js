@@ -10,6 +10,7 @@ import attributeValueRoutes from './attributes/attributeValue.routes.js'
 
 import regionRoutes from "./regions/region.routes.js"
 import promotionRoutes from "./promotions/promotion.routes.js"
+import campaignRoutes from './campaigns/campaign.routes.js'
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/attribute-values", attributeValueRoutes);
 
 app.use("/regions", regionRoutes);
 app.use("/promotions", promotionRoutes)
+app.use("/campaigns", campaignRoutes);
 
 app.use((req, res) => {
   return res.status(404).send("Page Not Found");

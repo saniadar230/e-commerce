@@ -11,7 +11,7 @@ import { CategoryRepository } from "./category.repository.js";
 
 class CategoryService {
     constructor(repository) {
-        this.repository = repository;
+        this.categoryRepository = repository;
     }
 
 

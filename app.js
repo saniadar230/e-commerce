@@ -5,6 +5,8 @@ import express from "express";
 import { NotFoundError, ConflictError, ValidationError } from "./apiError.js";
 import categoryRouter from "./categories/category.routes.js"
 import productRouter from "./products/product.routes.js";
+import attributeRoutes from './attributes/attribute.routes.js'
+import attributeValueRoutes from './attributes/attributeValue.routes.js'
 
 const app = express();
 
@@ -20,6 +22,10 @@ app.use(express.json());
 // Category Routes
 app.use("/categories", categoryRouter);
 app.use("/products", productRouter);
+
+
+app.use("/attributes", attributeRoutes);
+app.use("/attribute-values", attributeValueRoutes);
 
 app.use((req, res) => {
   return res.status(404).send("Page Not Found");

@@ -5,8 +5,9 @@ import { BaseRepository } from "../common/BaseRepository.js";
 import pool from "../db/db.js"
 
 export class ProductRepository extends BaseRepository {
-    // the repository owns its table name + which columns can be updated
+    // super access the base class constructor
     // id is NOT in the list, so nobody can change it
+
     constructor() {
         super("products", ["name", "description", "category_id"])
     }

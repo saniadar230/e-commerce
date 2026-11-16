@@ -1,4 +1,4 @@
-import pool from "./db/db.js";
+import pool from "../db/db.js";
 
 export default async function withTransaction(transactionFn) {
   const client = await pool.connect();

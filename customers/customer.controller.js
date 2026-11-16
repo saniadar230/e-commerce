@@ -1,5 +1,5 @@
 import * as customerService from "./customer.service.js";
-import { successReponse } from "../apiResponse.js";
+import { successReponse } from "../helperFunctions/apiResponse.js";
 
 export async function getAllCustomers(req, res, next) {
   const { pageNo = 1, pageSize = 10, sortBy = "asc", search = "" } = req.query;

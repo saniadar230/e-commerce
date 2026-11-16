@@ -21,7 +21,7 @@ export const getListSchema = Joi.object({
     "number.base": "Page size must be a number",
     "any.only": "Page size must be one of 5, 10, 15, 20, 25, or 30",
   }),
-  sortBy: Joi.string().trim().valid("asc", "desc").messages({
+  sortBy: Joi.string().trim().uppercase().valid("ASC", "DESC").messages({
     "string.base": "Sort By must be a string",
     "any.only": "Sort by must be one of asc or desc",
   }),

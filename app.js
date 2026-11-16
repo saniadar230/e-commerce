@@ -1,23 +1,38 @@
 import express from "express";
 import customerRouter from "./customers/customer.routes.js";
 import cartRouter from "./cart/cart.routes.js";
+import {
+  customerPaymentRouter,
+  adminPaymentRouter,
+  stripeWebhookRouter,
+} from "./payments/payment.routes.js";
+import { customerOrderRouter } from "./orders/order.routes.js";
+import { adminOrderRouter } from "./orders/order.routes.js";
 
 import dotenv from "dotenv";
 
 dotenv.config();
 // import productRouter from "./products/product.routes.js";
-// import orderRouter from "./orders/order.routes.js";
 
 const app = express();
+
+app.use(
+  "/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  stripeWebhookRouter
+);
 
 app.use(express.json());
 
 // Customer Routes
 app.use("/customers", customerRouter);
 app.use("/cart", cartRouter);
+app.use("/customer", customerPaymentRouter);
+app.use("/admin", adminPaymentRouter);
+app.use("/orders", customerOrderRouter);
+app.use("/admin/orders", adminOrderRouter);
 
 // app.use("/products", productRouter);
-// app.use("/orders", orderRouter);
 
 app.use((req, res) => {
   return res.status(404).send("Page Not Found");

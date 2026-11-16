@@ -610,12 +610,13 @@ async function markCardAttemptFailed(client, session, eventType) {
   if (!paymentId) return;
 
   const found = await client.query(
-    `SELECT p.id, p.order_id, p.payment_status, o.status AS order_status
-       FROM orders o
-       JOIN payments p ON p.order_id = o.id
-      WHERE p.id = $1
-        AND p.stripe_checkout_session_id = $2
-      FOR UPDATE OF o, p`,
+    `SELECT p.id, p.order_id, p.payment_status,
+       o.status AS order_status, o.customer_id
+      FROM orders o
+      JOIN payments p ON p.order_id = o.id
+    WHERE p.id = $1
+      AND p.stripe_checkout_session_id = $2
+    FOR UPDATE OF o, p`,
     [paymentId, session.id]
   );
   if (found.rows.length === 0) return;
@@ -635,6 +636,17 @@ async function markCardAttemptFailed(client, session, eventType) {
     await client.query(
       `UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
       [payment.order_id]
+    );
+
+    // Give the customer their cart back (unless they already have an active one)
+    await client.query(
+      `UPDATE carts SET status = 'active', updated_at = NOW()
+        WHERE id = (SELECT cart_id FROM orders WHERE id = $1)
+          AND status = 'converted'
+          AND NOT EXISTS (
+            SELECT 1 FROM carts WHERE customer_id = $2 AND status = 'active'
+          )`,
+      [payment.order_id, payment.customer_id]
     );
   }
 }

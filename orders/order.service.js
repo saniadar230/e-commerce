@@ -241,11 +241,12 @@ export async function createOrder(customer_id, region_id, cart_id) {
       throw new ConflictError("Order total must be greater than zero");
 
     const orderResult = await client.query(
-      `INSERT INTO orders (customer_id, total_amount)
-       VALUES ($1, $2)
+      `INSERT INTO orders (customer_id, cart_id, total_amount)
+       VALUES ($1, $2, $3)
        RETURNING id, status, created_at`,
-      [customerId, totalCents]
+      [customerId, cartId, totalCents]
     );
+
     const order = orderResult.rows[0];
 
     const payment = await client.query(
@@ -386,6 +387,11 @@ export async function cancelOrder(orderId, customerId) {
       ) {
         throw new ConflictError("Order is already paid; it must be refunded");
       }
+      if (!pays.rows.some((p) => p.payment_method === "card")) {
+        throw new ConflictError(
+          "Only card orders can be cancelled by the customer; contact support"
+        );
+      }
 
       await client.query(
         `UPDATE payments
@@ -398,6 +404,20 @@ export async function cancelOrder(orderId, customerId) {
       await client.query(
         `UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
         [orderId]
+      );
+
+      await client.query(
+        `UPDATE carts SET status = 'active', updated_at = NOW()
+          WHERE id = (
+            SELECT id FROM carts
+             WHERE customer_id = $1 AND status = 'converted'
+             ORDER BY updated_at DESC
+             LIMIT 1
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM carts WHERE customer_id = $1 AND status = 'active'
+          )`,
+        [customerId]
       );
 
       return {

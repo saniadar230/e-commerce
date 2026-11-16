@@ -14,6 +14,7 @@ CREATE TABLE orders (
 
     customer_id UUID NOT NULL
         REFERENCES customers(id),
+    cart_id UUID NOT NULL REFERENCES carts(id),
     status order_status NOT NULL DEFAULT 'pending',
     total_amount BIGINT NOT NULL CHECK(total_amount > 0),
 

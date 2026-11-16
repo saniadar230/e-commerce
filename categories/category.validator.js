@@ -24,3 +24,16 @@ export const listQuerySchema = Joi.object({
 export const updateCategorySchema = Joi.object({
     name: Joi.string().trim().min(1).max(255),
 }).min(1);
+
+
+// ====== category attribute validator
+
+export const linkAttributeSchema = Joi.object({
+    attribute_id: Joi.number().integer().positive().required(),
+    required: Joi.boolean(),
+});
+
+export const unlinkParamSchema = Joi.object({
+    id: Joi.number().integer().positive().required(),
+    attributeId: Joi.number().integer().positive().required(),
+});

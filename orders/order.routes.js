@@ -1,55 +1,66 @@
 import express from "express";
-import {
-  createOrderSchema,
-  updateOrderSchema,
-  orderItemParamsSchema,
-  updateOrderItemSchema,
-  addOrderItemSchema,
-} from "./order.schema.js";
-import { getListSchema, idSchema } from "../schemas/common.js";
 import { validate } from "../middleware/validate.js";
 import * as orderController from "./order.controller.js";
+import {
+  orderIdParamsSchema,
+  createOrderSchema,
+  cancelOrderSchema,
+  customerOrderQuerySchema,
+  customerOrdersQuerySchema,
+  orderListQuerySchema,
+} from "./order.schema.js";
 
-const orderRouter = express.Router();
+export const customerOrderRouter = express.Router();
+export const adminOrderRouter = express.Router();
 
-orderRouter
-  .route("/")
-  .get(validate(getListSchema, "query"), orderController.getAllOrders)
-  .post(validate(createOrderSchema, "body"), orderController.createOrder);
+// ---------------------------------------------------------------------
+// Customer routes (mounted at /orders)
+// ---------------------------------------------------------------------
 
-orderRouter
-  .route("/:id")
-  .get(validate(idSchema, "params"), orderController.getOrderById)
-  .patch(
-    validate(idSchema, "params"),
-    validate(updateOrderSchema, "body"),
-    orderController.updateOrder
-  )
-  .delete(validate(idSchema, "params"), orderController.deleteOrder);
+// Checkout: turns the active cart into an order + pending payment
+customerOrderRouter.post(
+  "/",
+  validate(createOrderSchema, "body"),
+  orderController.createOrder
+);
 
-orderRouter
-  .route("/:id/order-items")
-  .get(
-    validate(idSchema, "params"),
-    validate(getListSchema, "query"),
-    orderController.getOrderItems
-  )
-  .post(
-    validate(idSchema, "params"),
-    validate(addOrderItemSchema, "body"),
-    orderController.addOrderItem
-  );
+// My orders (paginated)
+customerOrderRouter.get(
+  "/",
+  validate(customerOrdersQuerySchema, "query"),
+  orderController.getCustomerOrders
+);
 
-orderRouter
-  .route("/:id/order-items/:itemId")
-  .delete(
-    validate(orderItemParamsSchema, "params"),
-    orderController.deleteOrderItem
-  )
-  .patch(
-    validate(orderItemParamsSchema, "params"),
-    validate(updateOrderItemSchema, "body"),
-    orderController.updateOrderItem
-  );
+// One of my orders (items + payments)
+customerOrderRouter.get(
+  "/:orderId",
+  validate(orderIdParamsSchema, "params"),
+  validate(customerOrderQuerySchema, "query"),
+  orderController.getCustomerOrderById
+);
 
-export default orderRouter;
+// Cancel one of my pending orders
+customerOrderRouter.post(
+  "/:orderId/cancel",
+  validate(orderIdParamsSchema, "params"),
+  validate(cancelOrderSchema, "body"),
+  orderController.cancelOrder
+);
+
+// ---------------------------------------------------------------------
+// Admin routes (mounted at /admin/orders)
+// ---------------------------------------------------------------------
+
+// All orders (paginated)
+adminOrderRouter.get(
+  "/",
+  validate(orderListQuerySchema, "query"),
+  orderController.getAllOrders
+);
+
+// Any order by id (items + payments)
+adminOrderRouter.get(
+  "/:orderId",
+  validate(orderIdParamsSchema, "params"),
+  orderController.getOrderById
+);

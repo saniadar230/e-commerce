@@ -1,6 +1,10 @@
 import { sql } from "../db.js";
-import { removeResponseFields } from "../helperFunctions.js";
-import { ValidationError, NotFoundError, ConflictError } from "../apiError.js";
+import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
+import {
+  ValidationError,
+  NotFoundError,
+  ConflictError,
+} from "../helperFunctions/apiError.js";
 
 export async function getAllProducts(pageNo, pageSize, sortBy) {
   const totalCount =

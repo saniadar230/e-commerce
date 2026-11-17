@@ -1,0 +1,17 @@
+{
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "on"
+  },
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.parameterHints.enabled": true,
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.snippetSuggestions": "inline",
+  "javascript.suggest.enabled": true,
+  "javascript.suggest.autoImports": true,
+  "javascript.suggest.completeFunctionCalls": true,
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "typescript.suggest.autoImports": true
+}

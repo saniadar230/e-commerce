@@ -99,4 +99,23 @@ export class CategoryRepository extends BaseRepository {
         }
     }
 
+
+    // ------- Top-level categories (no ltree needed) ==== WHERE parent_id IS NULL.
+
+    async getTopLevelCategories() {
+        const sql = `select * from ${this.tableName} where parent_id = null order by id`
+        const result = await pool.query(sql)
+        return result.rows;
+    }
+
+    // Breadcrumb (a category plus all its ancestors)
+    // Step 1: get the path of the given id (a subquery).
+    // Step 2: select every row whose path is an ancestor of that path, using the ltree operator @> (“is ancestor of or equal to”).
+    // Step 3: ORDER BY nlevel(path) so it comes out root, then child, then grandchild.
+
+
+    async getAllAncestors() {
+        const sql = `select `
+    }
+
 }

@@ -56,7 +56,7 @@ class CategoryService {
         throw new NotFoundError("parent category not found");
       }
     }
-    return this.repository.create(data);
+    return this.categoryRepository.create(data);
   }
 
   async updateCategories(id, data) {

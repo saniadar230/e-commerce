@@ -1,10 +1,16 @@
 import pool from "../db/db.js";
-import { NotFoundError, ValidationError } from "../apiError.js";
+import { NotFoundError, ValidationError } from "../helperFunctions/apiError.js";
 import { VariantRepository } from "./variant.repository.js";
 import { VariantAttributeValueRepository } from "./variantAttributeValue.repository.js";
 import { ProductRepository } from "../products/product.repository.js";
 import { AttributeValueRepository } from "../attributes/attributeValue.repository.js";
 
+
+// variants -- relation with in the sense of before variants 
+// -> products should exists, attributes should exists, attribute_values should exist
+// need variant attribute value table
+
+// variant_attribute_values. Without it, a variant is just a row with price and stock, and nothing says what makes it different.
 class VariantService {
   // dependency injection: the 4 repositories come from outside
   constructor(
@@ -80,7 +86,7 @@ class VariantService {
 
   // ---------- update (PATCH) ----------
   async update(id, data) {
-    const variant = await this.variantRepository.update(id, data);
+    const variant = await this.variantRepository.patch(id, data);
     if (!variant) throw new NotFoundError("variant not found");
     return variant;
   }

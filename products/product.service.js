@@ -37,7 +37,10 @@ class ProductService {
     const offset = (page - 1) * limit;
 
     // category_id is optional -> null means "no filter"
-    const categoryId = parseInt(query.category_id, 10) || null;
+    // const categoryId = parseInt(query.category_id, 10) || null;
+    // parseInt on a UUID reads only the leading digits, so 3fa8... becomes 3
+    const categoryId = query.category_id || null;
+
 
     // filtering by a category that doesn't exist -> 404 (not an empty list)
     if (categoryId !== null) {

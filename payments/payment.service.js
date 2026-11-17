@@ -7,10 +7,6 @@ import {
   ValidationError,
 } from "../helperFunctions/apiError.js";
 
-// ---------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------
-
 // Gives an order's stock back to its variants. Must run inside a transaction.
 // The caller must have locked the order and checked its status first, so
 // stock is never restored twice.
@@ -233,10 +229,6 @@ async function createStripeSession(payment) {
   };
 }
 
-// ---------------------------------------------------------------------
-// Customer
-// ---------------------------------------------------------------------
-
 export async function startPayment(orderId, customerId) {
   const payment = await findCustomerOrderPayment(pool, orderId, customerId);
   paymentAction(payment);
@@ -306,10 +298,6 @@ export async function getOrderPayments(orderId, customerId) {
   }
   return result.rows;
 }
-
-// ---------------------------------------------------------------------
-// Admin
-// ---------------------------------------------------------------------
 
 export async function getAllPayments(filters) {
   const { status, method, orderId, pageNo, pageSize, sortBy } = filters;

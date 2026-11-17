@@ -13,15 +13,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 // import productRouter from "./products/product.routes.js";
-import { NotFoundError, ConflictError, ValidationError } from "./apiError.js";
-import categoryRouter from "./categories/category.routes.js"
+import {
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "./helperFunctions/apiError.js";
+import categoryRouter from "./categories/category.routes.js";
 import productRouter from "./products/product.routes.js";
-import attributeRoutes from './attributes/attribute.routes.js'
-import attributeValueRoutes from './attributes/attributeValue.routes.js'
+import attributeRoutes from "./attributes/attribute.routes.js";
+import attributeValueRoutes from "./attributes/attributeValue.routes.js";
 
-import regionRoutes from "./regions/region.routes.js"
-import promotionRoutes from "./promotions/promotion.routes.js"
-import campaignRoutes from './campaigns/campaign.routes.js'
+import regionRoutes from "./regions/region.routes.js";
+import promotionRoutes from "./promotions/promotion.routes.js";
+import campaignRoutes from "./campaigns/campaign.routes.js";
 
 const app = express();
 
@@ -43,39 +47,35 @@ app.use("/admin/orders", adminOrderRouter);
 
 // app.use("/products", productRouter);
 
-
-
 // Category Routes
 app.use("/categories", categoryRouter);
 app.use("/products", productRouter);
 
-
 app.use("/attributes", attributeRoutes);
 app.use("/attribute-values", attributeValueRoutes);
 
-
 app.use("/regions", regionRoutes);
-app.use("/promotions", promotionRoutes)
+app.use("/promotions", promotionRoutes);
 app.use("/campaigns", campaignRoutes);
 
 app.use((req, res) => {
   return res.status(404).send("Page Not Found");
 });
 
-
-
 // ===== postgres errors -> our own errors =====
 // pg errors have a `code`. Without this, they would all show up as 500.
 const mapDbError = (err) => {
   // 23505 = unique violation (duplicate value)
-  if (err.code === "23505") return new ConflictError("A record with this value already exists");
+  if (err.code === "23505")
+    return new ConflictError("A record with this value already exists");
   // 23503 = foreign key violation (parent doesn't exist OR row is still used by another table)
-  if (err.code === "23503") return new ConflictError("This record is linked to other records");
+  if (err.code === "23503")
+    return new ConflictError("This record is linked to other records");
   // 22P02 = invalid input syntax (e.g. text where a number is expected)
-  if (err.code === "22P02") return new ValidationError("Invalid value in request", []);
+  if (err.code === "22P02")
+    return new ValidationError("Invalid value in request", []);
   return err;
 };
-
 
 app.use((err, req, res, next) => {
   // if the response already started, express must handle it
@@ -91,8 +91,6 @@ app.use((err, req, res, next) => {
   // anything that is not our AppError is a real bug -> log it, don't show details to the client
   const isKnown = err.statusCode !== undefined;
   if (!isKnown) console.error(err);
-
-
 
   return res.status(err.statusCode || 500).jjson({
     type: "about:blank",

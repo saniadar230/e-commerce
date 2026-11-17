@@ -2,10 +2,9 @@
 // product depends on category (products.category_id) -> service needs TWO repositories
 // both are injected through the constructor (dependency injection)
 
-import { NotFoundError } from "../apiError.js";
+import { NotFoundError } from "../helperFunctions/apiError.js";
 import { ProductRepository } from "./product.repository.js";
 import { CategoryRepository } from "../categories/category.repository.js";
-
 
 class ProductService {
   constructor(productRepository, categoryRepository) {
@@ -45,7 +44,11 @@ class ProductService {
       await this.#ensureCategoryExists(categoryId);
     }
 
-    const { data, total } = await this.repository.findAll({ limit, offset, categoryId });
+    const { data, total } = await this.repository.findAll({
+      limit,
+      offset,
+      categoryId,
+    });
 
     return {
       data,
@@ -94,9 +97,11 @@ class ProductService {
   }
 }
 
-
 // instances: both repositories are given to the service ----- dependency injection
 const productRepository = new ProductRepository();
 const categoryRepository = new CategoryRepository();
 
-export const productService = new ProductService(productRepository, categoryRepository);
+export const productService = new ProductService(
+  productRepository,
+  categoryRepository
+);

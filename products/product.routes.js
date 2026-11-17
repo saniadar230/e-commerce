@@ -1,24 +1,30 @@
-import express from "express";
-import { createProductSchema, updateProductSchema } from "./product.schema.js";
-import { getListSchema, idSchema } from "../schemas/common.js";
-import { validate } from "../middleware/validate.js";
-import * as productController from "./product.controller.js";
+import { Router } from "express";
 
-const productRouter = express.Router();
+import { validate } from "../middleware/validate.js"
+import { productController as controller } from "./product.controller.js";
+import {
+  createProductSchema,
+  updateProductSchema,
+  productIdParamSchema,
+  listProductsQuerySchema,
+} from "./product.validator.js";
 
-productRouter
-  .route("/")
-  .get(validate(getListSchema, "query"), productController.getAllProducts)
-  .post(validate(createProductSchema, "body"), productController.createProduct);
+const router = Router();
 
-productRouter
-  .route("/:id")
-  .get(validate(idSchema, "params"), productController.getProductById)
-  .patch(
-    validate(idSchema, "params"),
-    validate(updateProductSchema, "body"),
-    productController.updateProduct
-  )
-  .delete(validate(idSchema, "params"), productController.deleteProduct);
+// GET    /products
+router.get("/", validate(listProductsQuerySchema, "query"), controller.getAll);
 
-export default productRouter;
+router.post("/", validate(createProductSchema), controller.create);
+router.get("/:id", validate(productIdParamSchema, "params"), controller.getById);
+
+// PATCH needs TWO validators: one for the :id in the URL, one for the body
+router.patch(
+  "/:id",
+  validate(productIdParamSchema, "params"), // checks the :id in the URL
+  validate(updateProductSchema),            // checks the body (default)
+  controller.update
+);
+
+router.delete("/:id", validate(productIdParamSchema, "params"), controller.delete);
+
+export default router;

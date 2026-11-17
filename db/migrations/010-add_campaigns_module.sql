@@ -5,7 +5,7 @@ CREATE TYPE campaign_scope AS ENUM ('global', 'category', 'product', 'variant');
 
 -- ===== regions =====
 CREATE TABLE regions (
-  id   SERIAL PRIMARY KEY,
+  id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   code VARCHAR(50)  NOT NULL UNIQUE
 );

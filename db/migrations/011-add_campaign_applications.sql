@@ -2,12 +2,12 @@ CREATE TABLE campaign_applications (
   id            SERIAL PRIMARY KEY,
   campaign_id   INT NOT NULL REFERENCES campaigns(id),
   promotion_id  INT NOT NULL REFERENCES promotions(id),
-  region_id     INT REFERENCES regions(id),
+  region_id     UUID REFERENCES regions(id),
 
   scope         campaign_scope NOT NULL,
-  category_id   INT REFERENCES categories(id),
-  product_id    INT REFERENCES products(id),
-  variant_id    INT REFERENCES variants(id),
+  category_id   UUID REFERENCES categories(id),
+  product_id    UUID REFERENCES products(id),
+  variant_id    UUID REFERENCES variants(id),
 
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -15,8 +15,8 @@ CREATE EXTENSION IF NOT EXISTS ltree;
 
 -- ===== categories (self-reference via parent_id) =====
 CREATE TABLE categories (
-  id        SERIAL PRIMARY KEY,
-  parent_id INT REFERENCES categories(id),
+  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id UUID REFERENCES categories(id),
   name      VARCHAR(255) NOT NULL,
   path      ltree
 );
@@ -31,15 +31,15 @@ CREATE TABLE attributes (
 
 -- ===== products (needs categories) =====
 CREATE TABLE products (
-  id          SERIAL PRIMARY KEY,
-  category_id INT NOT NULL REFERENCES categories(id),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID NOT NULL REFERENCES categories(id),
   name        VARCHAR(255) NOT NULL,
   description TEXT
 );
 
 -- ===== category_attributes (needs categories, attributes) =====
 CREATE TABLE category_attributes (
-  category_id  INT NOT NULL REFERENCES categories(id),
+  category_id  UUID NOT NULL REFERENCES categories(id),
   attribute_id INT NOT NULL REFERENCES attributes(id),
   required     BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (category_id, attribute_id)
@@ -72,8 +72,8 @@ CREATE TABLE attribute_values (
 
 -- ===== variants (needs products) =====
 CREATE TABLE variants (
-  id         SERIAL PRIMARY KEY,
-  product_id INT NOT NULL REFERENCES products(id),
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id),
   sku        VARCHAR(100) NOT NULL UNIQUE,
   price      DECIMAL(10,2) NOT NULL,
   stock      INT NOT NULL DEFAULT 0
@@ -100,7 +100,7 @@ CREATE TABLE variants (
 
 -- ===== variant_attribute_values (needs variants, attributes, attribute_values) =====
 CREATE TABLE variant_attribute_values (
-  variant_id         INT NOT NULL REFERENCES variants(id),
+  variant_id         UUID NOT NULL REFERENCES variants(id),
   attribute_id       INT NOT NULL REFERENCES attributes(id),
   attribute_value_id INT NOT NULL REFERENCES attribute_values(id),
   PRIMARY KEY (variant_id, attribute_id)

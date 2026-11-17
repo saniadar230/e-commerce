@@ -94,6 +94,5 @@ export const campaignApplicationService = new CampaignApplicationService({
   regionRepository: new RegionRepository(),
   categoryRepository: new CategoryRepository(),
   productRepository: new ProductRepository(),
-  // variants CRUD isn't finished, so the generic base class is enough for findById
-  variantRepository: new BaseRepository("variants", []),
+  // variantRepository: new BaseRepository("variants", []),
 });

@@ -25,7 +25,7 @@ class CategoryService {
     // this.repository refers to the CategoryRepository instance,
     // which extends BaseRepository.
     // Therefore, the instance can access the inherited findAll() method.
-    const { data, total } = await this.repository.findAll({ limit, offset });
+    const { data, total } = await this.categoryRepository.findAll({ limit, offset });
 
     return {
       data,
@@ -39,7 +39,7 @@ class CategoryService {
   }
 
   async findById(id) {
-    const category = await this.repository.findById(id);
+    const category = await this.categoryRepository.findById(id);
 
     if (!category) {
       throw new NotFoundError("category not found");
@@ -50,7 +50,7 @@ class CategoryService {
 
   async create(data) {
     if (data.parent_id !== null) {
-      const parent = await this.repository.findById(data.parent_id);
+      const parent = await this.categoryRepository.findById(data.parent_id);
 
       if (!parent) {
         throw new NotFoundError("parent category not found");
@@ -60,7 +60,7 @@ class CategoryService {
   }
 
   async updateCategories(id, data) {
-    const updated = await this.repository.patch(id, data);
+    const updated = await this.categoryRepository.patch(id, data);
 
     if (!updated) {
       throw new NotFoundError("Category not found");
@@ -70,7 +70,7 @@ class CategoryService {
   }
 
   async delete(id) {
-    const deleted = await this.repository.delete(id);
+    const deleted = await this.categoryRepository.delete(id);
 
     if (!deleted) {
       throw new NotFoundError("category not found");

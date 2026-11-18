@@ -14,14 +14,14 @@ const router = Router();
 // GET    /products
 router.get("/", validate(listProductsQuerySchema, "query"), controller.getAll);
 
-router.post("/", validate(createProductSchema), controller.create);
+router.post("/", validate(createProductSchema, "body"), controller.create);
 router.get("/:id", validate(productIdParamSchema, "params"), controller.getById);
 
 // PATCH needs TWO validators: one for the :id in the URL, one for the body
 router.patch(
   "/:id",
   validate(productIdParamSchema, "params"), // checks the :id in the URL
-  validate(updateProductSchema),            // checks the body (default)
+  validate(updateProductSchema, "body"),            // checks the body (default)
   controller.update
 );
 

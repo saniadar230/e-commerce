@@ -2,13 +2,13 @@
 // product depends on category (products.category_id) -> service needs TWO repositories
 // both are injected through the constructor (dependency injection)
 
-import { NotFoundError } from "../helperFunctions/apiError.js";
+import { NotFoundError, ConflictError } from "../helperFunctions/apiError.js";
 import { ProductRepository } from "./product.repository.js";
 import { CategoryRepository } from "../categories/category.repository.js";
 
 class ProductService {
-  constructor(productRepository, categoryRepository) {
-    this.repository = productRepository;
+  constructor(repository, categoryRepository) {
+    this.productRepository = repository;
     this.categoryRepository = categoryRepository;
   }
 
@@ -25,9 +25,8 @@ class ProductService {
   async create(data) {
     // 1. category must exist
     await this.#ensureCategoryExists(data.category_id);
-
     // 2. then create the product
-    return this.repository.create(data);
+    return this.productRepository.create(data);
   }
 
   // ===== paginated list (+ optional category filter) =====
@@ -36,36 +35,21 @@ class ProductService {
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 10, 1), 100);
     const offset = (page - 1) * limit;
 
-    // category_id is optional -> null means "no filter"
-    // const categoryId = parseInt(query.category_id, 10) || null;
-    // parseInt on a UUID reads only the leading digits, so 3fa8... becomes 3
-    const categoryId = query.category_id || null;
-
-
-    // filtering by a category that doesn't exist -> 404 (not an empty list)
-    if (categoryId !== null) {
-      await this.#ensureCategoryExists(categoryId);
+    // a filter on a category that doesn't exist should be a 404, not an empty list
+    if (query.category_id) {
+      await this.#ensureCategoryExists(query.category_id);
     }
 
-    const { data, total } = await this.repository.findAll({
-      limit,
-      offset,
-      categoryId,
+    const { data, total } = await this.productRepository.findAll({
+      limit, offset,
+      categoryId: query.category_id ?? null,
+      search: query.search ?? null,
     });
 
-    return {
-      data,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
-
   async findById(id) {
-    const product = await this.repository.findById(id);
+    const product = await this.productRepository.findById(id);
 
     if (!product) {
       throw new NotFoundError("product not found");
@@ -80,7 +64,7 @@ class ProductService {
       await this.#ensureCategoryExists(data.category_id);
     }
 
-    const updated = await this.repository.patch(id, data);
+    const updated = await this.productRepository.patch(id, data);
 
     if (!updated) {
       throw new NotFoundError("product not found");
@@ -90,13 +74,17 @@ class ProductService {
   }
 
   async delete(id) {
-    const deleted = await this.repository.delete(id);
-
-    if (!deleted) {
-      throw new NotFoundError("product not found");
+    try {
+      const deleted = await this.productRepository.delete(id);
+      if (!deleted) throw new NotFoundError("product not found");
+      return deleted;
+    } catch (error) {
+      // 23503 = foreign key violation (variants still point to this product)
+      if (error.code === "23503") {
+        throw new ConflictError("product has variants, delete them first");
+      }
+      throw error;
     }
-
-    return deleted;
   }
 }
 

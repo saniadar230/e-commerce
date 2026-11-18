@@ -20,6 +20,12 @@ class CategoryController {
         this.getAll = this.getAll.bind(this)
         this.getById = this.getById.bind(this)
         this.delete = this.delete.bind(this)
+
+        this.getTopLevel = this.getTopLevel.bind(this)
+        this.getBreadcrumb = this.getBreadcrumb.bind(this)
+        this.getDescendants = this.getDescendants.bind(this)
+        this.getChildren = this.getChildren.bind(this)
+        this.getTree = this.getTree.bind(this)
     }
 
     async getAll(req, res, next) {
@@ -74,6 +80,54 @@ class CategoryController {
 
             return res.status(200).json({ deleted })
 
+        } catch (error) {
+            next(error)
+        }
+    }
+
+
+
+    // ========== get top level
+    async getTopLevel(req, res, next) {
+        try {
+            const data = await this.service.findTopLevelCategories()
+            return res.status(200).json({ data })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    async getBreadcrumb(req, res, next) {
+        try {
+            const data = await this.service.findAncestorsById(req.params.id)
+            return res.status(200).json({ data })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    async getDescendants(req, res, next) {
+        try {
+            const data = await this.service.findDescendantsById(req.params.id)
+            return res.status(200).json({ data })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    async getChildren(req, res, next) {
+        try {
+            const data = await this.service.findDirectChildren(req.params.id)
+            return res.status(200).json({ data })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    async getTree(req, res, next) {
+        try {
+            const data = await this.service.findCategoryTree()
+            return res.status(200).json({ data })
         } catch (error) {
             next(error)
         }

@@ -13,7 +13,7 @@ export class CategoryRepository extends BaseRepository {
 
     // the repository owns its table name, so a caller can't pass a wrong one
     constructor() {
-        super("categories", ["name", "parent_id"])
+        super("categories", ["name"])
     }
 
 
@@ -103,19 +103,41 @@ export class CategoryRepository extends BaseRepository {
     // ------- Top-level categories (no ltree needed) ==== WHERE parent_id IS NULL.
 
     async getTopLevelCategories() {
-        const sql = `select * from ${this.tableName} where parent_id = null order by id`
+        const sql = `select * from ${this.tableName} where parent_id is null order by id`
         const result = await pool.query(sql)
         return result.rows;
     }
+    // (a category plus all its ancestors)
 
-    // Breadcrumb (a category plus all its ancestors)
-    // Step 1: get the path of the given id (a subquery).
-    // Step 2: select every row whose path is an ancestor of that path, using the ltree operator @> (“is ancestor of or equal to”).
-    // Step 3: ORDER BY nlevel(path) so it comes out root, then child, then grandchild.
-
-
-    async getAllAncestors() {
-        const sql = `select `
+    async getAllAncestors(id) {
+        // @> contains in sql 
+        const sql = `select * from ${this.tableName} where path @> (select path from ${this.tableName} where id = $1) order by nlevel(path)`
+        const result = await pool.query(sql, [id])
+        return result.rows;
     }
 
+    async getAllDescendants(id) {
+        const sql = `select * from ${this.tableName} where path <@ (select path from ${this.tableName} where id = $1) order by path`
+        const result = await pool.query(sql, [id])
+        return result.rows;
+    }
+
+
+    // Direct children only (where parent_id = $1). ==== for a menu click Electronics, see Phones and Laptops.
+
+    async getDirectChildren(parentId) {
+        // children = rows whose parent_id is the given id
+        const sql = `select * from ${this.tableName} where parent_id = $1 order by name`
+        const result = await pool.query(sql, [parentId])
+        return result.rows
+    }
+
+    // full tree for a mega menu
+
+    async getAllCategoriesdByPath() {
+        // ordering by path puts every parent right before its children
+        const sql = `select * from ${this.tableName} order by path`
+        const result = await pool.query(sql)
+        return result.rows
+    }
 }

@@ -3,13 +3,13 @@ import Joi from "joi";
 // ===== create category: POST /categories (body) =====
 // path is NOT allowed here: Joi rejects unknown keys, so a client can't send it
 export const createCategorySchema = Joi.object({
-    parent_id: Joi.number().integer().positive().allow(null).default(null),
+    parent_id: Joi.string().uuid().allow(null).default(null),
     name: Joi.string().trim().min(1).max(255).required(),
 });
 
 // ===== category id in the URL: GET /categories/:id (params) =====
 export const categoryIdParamSchema = Joi.object({
-    id: Joi.number().integer().positive().required(),
+    id: Joi.string().uuid().required(),
 });
 
 // ===== pagination: GET /categories?page=1&limit=10 (query) =====
@@ -34,6 +34,6 @@ export const linkAttributeSchema = Joi.object({
 });
 
 export const unlinkParamSchema = Joi.object({
-    id: Joi.number().integer().positive().required(),
+    id: Joi.string().uuid().required(),
     attributeId: Joi.number().integer().positive().required(),
 });

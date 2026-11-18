@@ -1,4 +1,4 @@
-// variant attribute value ===== links variant and attribute_value table
+// variant attribute value ===== links variant table attribute table and attribute value
 
 import { BaseRepository } from "../common/BaseRepository.js";
 import pool from "../db/db.js";

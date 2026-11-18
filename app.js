@@ -8,7 +8,7 @@ import {
 } from "./payments/payment.routes.js";
 import { customerOrderRouter } from "./orders/order.routes.js";
 import { adminOrderRouter } from "./orders/order.routes.js";
-
+import cors from 'cors'
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -27,6 +27,7 @@ import regionRoutes from "./regions/region.routes.js";
 import promotionRoutes from "./promotions/promotion.routes.js";
 import campaignRoutes from "./campaigns/campaign.routes.js";
 
+
 const app = express();
 
 app.use(
@@ -34,6 +35,8 @@ app.use(
   express.raw({ type: "application/json" }),
   stripeWebhookRouter
 );
+
+app.use(cors({ origin: 'http://localhost:5173' }))
 
 app.use(express.json());
 
@@ -92,7 +95,7 @@ app.use((err, req, res, next) => {
   const isKnown = err.statusCode !== undefined;
   if (!isKnown) console.error(err);
 
-  return res.status(err.statusCode || 500).jjson({
+  return res.status(err.statusCode || 500).json({
     type: "about:blank",
     status: err.statusCode || 500,
     //A short, human-readable summary of the problem type. It should not change from occurrence to occurrence of the problem, except for purposes of localization.

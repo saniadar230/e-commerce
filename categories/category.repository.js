@@ -13,7 +13,7 @@ export class CategoryRepository extends BaseRepository {
 
     // the repository owns its table name, so a caller can't pass a wrong one
     constructor() {
-        super("categories", ["name", "parent_id"])
+        super("categories", ["name"])
     }
 
 
@@ -99,4 +99,45 @@ export class CategoryRepository extends BaseRepository {
         }
     }
 
+
+    // ------- Top-level categories (no ltree needed) ==== WHERE parent_id IS NULL.
+
+    async getTopLevelCategories() {
+        const sql = `select * from ${this.tableName} where parent_id is null order by id`
+        const result = await pool.query(sql)
+        return result.rows;
+    }
+    // (a category plus all its ancestors)
+
+    async getAllAncestors(id) {
+        // @> contains in sql 
+        const sql = `select * from ${this.tableName} where path @> (select path from ${this.tableName} where id = $1) order by nlevel(path)`
+        const result = await pool.query(sql, [id])
+        return result.rows;
+    }
+
+    async getAllDescendants(id) {
+        const sql = `select * from ${this.tableName} where path <@ (select path from ${this.tableName} where id = $1) order by path`
+        const result = await pool.query(sql, [id])
+        return result.rows;
+    }
+
+
+    // Direct children only (where parent_id = $1). ==== for a menu click Electronics, see Phones and Laptops.
+
+    async getDirectChildren(parentId) {
+        // children = rows whose parent_id is the given id
+        const sql = `select * from ${this.tableName} where parent_id = $1 order by name`
+        const result = await pool.query(sql, [parentId])
+        return result.rows
+    }
+
+    // full tree for a mega menu
+
+    async getAllCategoriesdByPath() {
+        // ordering by path puts every parent right before its children
+        const sql = `select * from ${this.tableName} order by path`
+        const result = await pool.query(sql)
+        return result.rows
+    }
 }

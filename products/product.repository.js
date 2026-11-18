@@ -32,56 +32,44 @@ export class ProductRepository extends BaseRepository {
     // -- override findAll: same as the parent + optional category filter
     // categoryId given  -> products of that category AND all its descendants
     // categoryId empty   -> all products
-    async findAll({ limit = 10, offset = 0, categoryId = null } = {}) {
-        // no category filter -> parent's version already does the job
-        if (categoryId === null) {
-            return super.findAll({ limit, offset });
+    async findAll({ limit = 10, offset = 0, categoryId = null, search = null } = {}) {
+        const conditions = []
+        const params = []
+
+        // FILTER 1: category + all its descendants
+        if (categoryId) {
+            params.push(categoryId)
+            conditions.push(`p.category_id IN (
+            select id from categories
+            where path <@ (select path from categories where id = $${params.length})
+        )`)
         }
 
-        // ===== query 1: the rows of this page =====
+        // FILTER 2: name search (case-insensitive)
+        if (search) {
+            params.push(`%${search}%`)
+            conditions.push(`p.name ILIKE $${params.length}`)
+        }
+
+        const where = conditions.length ? `where ${conditions.join(" and ")}` : ""
+
+        // QUERY 1: the page (name first so it looks sorted, id keeps it stable)
         const dataSql = `
-            SELECT p.*
-            FROM ${this.tableName} p
-            WHERE p.category_id IN (
-
-                -- subquery: ids of this category + all children, grandchildren, deeper
-                SELECT id
-                FROM categories
-                WHERE path <@ (
-
-                    -- sub-subquery: path of the category the user selected
-                    SELECT path FROM categories WHERE id = $1
-                )
-            )
-            ORDER BY p.id
-            LIMIT $2 OFFSET $3
-        `;
-
-        // ===== query 2: total number of matching products =====
-        const countSql = `
-            SELECT count(*)
-            FROM ${this.tableName} p
-            WHERE p.category_id IN (
-
-                -- subquery: ids of this category + all descendants
-                SELECT id
-                FROM categories
-                WHERE path <@ (
-
-                    -- sub-subquery: path of the selected category
-                    SELECT path FROM categories WHERE id = $1
-                )
-            )
-        `;
+        select p.* from ${this.tableName} p
+        ${where}
+        order by p.name, p.id
+        limit $${params.length + 1} offset $${params.length + 2}
+    `
+        // QUERY 2: total count with the same filters
+        const countSql = `select count(*) from ${this.tableName} p ${where}`
 
         const [dataResult, countResult] = await Promise.all([
-            pool.query(dataSql, [categoryId, limit, offset]),
-            pool.query(countSql, [categoryId]),
-        ]);
+            pool.query(dataSql, [...params, limit, offset]),
+            pool.query(countSql, params),
+        ])
 
-        return {
-            data: dataResult.rows,
-            total: Number(countResult.rows[0].count),
-        };
+        return { data: dataResult.rows, total: Number(countResult.rows[0].count) }
     }
+
+
 }

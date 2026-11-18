@@ -25,7 +25,7 @@ class CategoryService {
     // this.repository refers to the CategoryRepository instance,
     // which extends BaseRepository.
     // Therefore, the instance can access the inherited findAll() method.
-    const { data, total } = await this.repository.findAll({ limit, offset });
+    const { data, total } = await this.categoryRepository.findAll({ limit, offset });
 
     return {
       data,
@@ -39,7 +39,7 @@ class CategoryService {
   }
 
   async findById(id) {
-    const category = await this.repository.findById(id);
+    const category = await this.categoryRepository.findById(id);
 
     if (!category) {
       throw new NotFoundError("category not found");
@@ -50,17 +50,17 @@ class CategoryService {
 
   async create(data) {
     if (data.parent_id !== null) {
-      const parent = await this.repository.findById(data.parent_id);
+      const parent = await this.categoryRepository.findById(data.parent_id);
 
       if (!parent) {
         throw new NotFoundError("parent category not found");
       }
     }
-    return this.repository.create(data);
+    return this.categoryRepository.create(data);
   }
 
   async updateCategories(id, data) {
-    const updated = await this.repository.patch(id, data);
+    const updated = await this.categoryRepository.patch(id, data);
 
     if (!updated) {
       throw new NotFoundError("Category not found");
@@ -70,7 +70,7 @@ class CategoryService {
   }
 
   async delete(id) {
-    const deleted = await this.repository.delete(id);
+    const deleted = await this.categoryRepository.delete(id);
 
     if (!deleted) {
       throw new NotFoundError("category not found");
@@ -78,6 +78,68 @@ class CategoryService {
 
     return deleted;
   }
+
+  // ========== top level categories
+  async findTopLevelCategories() {
+    // empty list is a valid answer (no categories yet), so no 404 here
+    return this.categoryRepository.getTopLevelCategories();
+  }
+
+  // ======== breadcrumb: category + all its ancestors
+  async findAncestorsById(id) {
+    const ancestors = await this.categoryRepository.getAllAncestors(id);
+
+    // result always includes the category itself, so empty = id doesn't exist
+    if (ancestors.length === 0) {
+      throw new NotFoundError("category not found");
+    }
+
+    return ancestors;
+  }
+
+  // ======== category + all its descendants
+  async findDescendantsById(id) {
+    const descendants = await this.categoryRepository.getAllDescendants(id);
+
+    // same reason: parent is included, so empty = id doesn't exist
+    if (descendants.length === 0) {
+      throw new NotFoundError("category not found");
+    }
+
+    return descendants;
+  }
+
+  // ======== direct children of a parent
+  async findDirectChildren(parentId) {
+    // a leaf category has no children (valid), so check the parent itself first
+    await this.findById(parentId); // throws 404 if parent doesn't exist
+
+    return this.categoryRepository.getDirectChildren(parentId);
+  }
+
+  // ======== full tree (nested) for mega menu
+  async findCategoryTree() {
+    // rows come ordered by path, so parents always come before children
+    const rows = await this.categoryRepository.getAllCategoriesdByPath();
+
+    // step 1: put every row in a map by id, with an empty children list
+    const map = new Map();
+    rows.forEach((row) => map.set(row.id, { ...row, children: [] }));
+
+    // step 2: attach each row to its parent (or to roots if no parent)
+    const roots = [];
+    map.forEach((node) => {
+      if (node.parent_id === null) {
+        roots.push(node);
+      } else {
+        map.get(node.parent_id).children.push(node);
+      }
+    });
+
+    return roots;
+  }
+
+
 }
 
 // instance for repository ---

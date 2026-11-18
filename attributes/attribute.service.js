@@ -13,15 +13,19 @@ class AttributeService {
 
   async getAll(query) {
     const { page, limit, offset } = getPagination(query);
+    const isActive = query.is_active === undefined ? null : String(query.is_active) === "true"
     const { data, total } = await this.attributeRepository.findAll({
       limit,
       offset,
+      isActive
     });
+    // query.is_active may arrive as "true"/"false" (string) or a boolean
+
     return { data, meta: buildMeta({ page, limit, total }) };
   }
 
   async getById(id) {
-    const attribute = await this.attributeRepository.findById(id);
+    const attribute = await this.attributeRepository.findByIdWithValues(id);
     if (!attribute) throw new NotFoundError("attribute not found");
     return attribute;
   }

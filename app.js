@@ -66,19 +66,38 @@ app.use((req, res) => {
 });
 
 // ===== postgres errors -> our own errors =====
-// pg errors have a `code`. Without this, they would all show up as 500.
 const mapDbError = (err) => {
-  // 23505 = unique violation (duplicate value)
-  if (err.code === "23505")
-    return new ConflictError("A record with this value already exists");
-  // 23503 = foreign key violation (parent doesn't exist OR row is still used by another table)
-  if (err.code === "23503")
-    return new ConflictError("This record is linked to other records");
-  // 22P02 = invalid input syntax (e.g. text where a number is expected)
-  if (err.code === "22P02")
-    return new ValidationError("Invalid value in request", []);
-  return err;
+  switch (err.code) {
+    // unique violation (duplicate value)
+    case "23505":
+      return new ConflictError("A record with this value already exists");
+
+    // foreign key violation: two different cases
+    case "23503":
+      // DELETE case: other rows still point to this one
+      if (err.detail?.includes("still referenced")) {
+        return new ConflictError("Cannot delete: this record is used by other records");
+      }
+      // INSERT / UPDATE case: the parent row doesn't exist
+      return new NotFoundError("A related record does not exist");
+
+    // CHECK constraint (negative price or stock)
+    case "23514":
+      return new ValidationError("Value breaks a database rule", []);
+
+    // invalid input syntax (text where a number or uuid is expected)
+    case "22P02":
+      return new ValidationError("Invalid value in request", []);
+    // number too big for the column
+    case "22003":
+      return new ValidationError("Number is out of range", []);
+
+    default:
+      return err;
+  }
 };
+
+
 
 app.use((err, req, res, next) => {
   // if the response already started, express must handle it

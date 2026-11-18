@@ -12,7 +12,7 @@ export const updateAttributeValueSchema = Joi.object({
 });
 
 export const attributeValueIdParamSchema = Joi.object({
-    id: Joi.number().integer().positive().required(),
+    id: Joi.number().integer().positive().required().max(2147483647),
 });
 
 export const listAttributeValueQuerySchema = Joi.object({

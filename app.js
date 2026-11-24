@@ -23,6 +23,8 @@ import productRouter from "./products/product.routes.js";
 import attributeRoutes from "./attributes/attribute.routes.js";
 import attributeValueRoutes from "./attributes/attributeValue.routes.js";
 
+import variantRoutes from "./variant/variant.routes.js"
+
 import regionRoutes from "./regions/region.routes.js";
 import promotionRoutes from "./promotions/promotion.routes.js";
 import campaignRoutes from "./campaigns/campaign.routes.js";
@@ -56,6 +58,10 @@ app.use("/products", productRouter);
 
 app.use("/attributes", attributeRoutes);
 app.use("/attribute-values", attributeValueRoutes);
+
+
+
+app.use("/variants", variantRoutes)
 
 app.use("/regions", regionRoutes);
 app.use("/promotions", promotionRoutes);

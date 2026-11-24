@@ -6,6 +6,7 @@ export const createAttributeSchema = Joi.object({
 
 export const updateAttributeSchema = Joi.object({
     name: Joi.string().trim().min(1).max(100),
+    is_active: Joi.boolean(),
 }).min(1); // at least one field
 
 export const attributeIdParamSchema = Joi.object({

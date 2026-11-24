@@ -3,11 +3,24 @@ import { variantService } from "./variant.service.js";
 class VariantController {
     constructor(service) {
         this.service = service;
+        this.getAll = this.getAll.bind(this)
         this.create = this.create.bind(this);
         this.getByProduct = this.getByProduct.bind(this);
         this.getById = this.getById.bind(this);
         this.update = this.update.bind(this);
         this.remove = this.remove.bind(this);
+    }
+
+    // GET /products?page=1&limit=10&category_id=3
+    async getAll(req, res, next) {
+        try {
+            // result = { data, meta }
+            const result = await this.service.findAll(req.query)
+
+            return res.status(200).json(result)
+        } catch (error) {
+            next(error)
+        }
     }
 
     async create(req, res, next) {
@@ -18,6 +31,7 @@ class VariantController {
     }
 
     async getByProduct(req, res, next) {
+
         try {
             const data = await this.service.getByProduct(req.query.product_id);
             res.status(200).json({ data });

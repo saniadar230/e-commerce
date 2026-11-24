@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 export const createVariantSchema = Joi.object({
-    product_id: Joi.number().integer().positive().required(),
+    product_id: Joi.string().uuid().required(),
     sku: Joi.string().trim().min(1).max(100).required(),
     price: Joi.number().precision(2).min(0).required(),
     stock: Joi.number().integer().min(0).default(0),
@@ -19,9 +19,9 @@ export const updateVariantSchema = Joi.object({
 }).min(1);
 
 export const variantIdParamSchema = Joi.object({
-    id: Joi.number().integer().positive().required(),
+    id: Joi.string().uuid().required(),
 });
 
 export const listVariantQuerySchema = Joi.object({
-    product_id: Joi.number().integer().positive().required(),
+    product_id: Joi.string().uuid().required(),
 });

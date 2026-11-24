@@ -5,6 +5,10 @@ import { VariantAttributeValueRepository } from "./variantAttributeValue.reposit
 import { ProductRepository } from "../products/product.repository.js";
 import { AttributeValueRepository } from "../attributes/attributeValue.repository.js";
 
+import { getPagination, buildMeta } from "../common/pagination.js";
+// for check the allowed attributes for particular product
+import { CategoryAttributeRepository } from "../categories/categoryAttribute.repository.js"
+
 
 // variants -- relation with in the sense of before variants 
 // -> products should exists, attributes should exists, attribute_values should exist
@@ -18,17 +22,62 @@ class VariantService {
     variantAttributeValueRepository,
     productRepository,
     attributeValueRepository,
+    categoryAttributeIns,
   ) {
     this.variantRepository = variantRepository;
     this.variantAttributeValueRepository = variantAttributeValueRepository;
     this.productRepository = productRepository;
     this.attributeValueRepository = attributeValueRepository;
+    this.categoryAttribute = categoryAttributeIns;
+  }
+
+
+  // -------- get all variants ------
+
+  async findAll(query) {
+    const { page, limit, offset } = getPagination(query);
+    const { data, total } = await this.variantRepository.findAll({
+      limit,
+      offset,
+      isActive
+    });
+    // query.is_active may arrive as "true"/"false" (string) or a boolean
+
+    return { data, meta: buildMeta({ page, limit, total }) };
   }
 
   // ---------- private helpers ----------
   async #ensureProductExists(productId) {
     const product = await this.productRepository.findById(productId);
     if (!product) throw new NotFoundError("product not found");
+  }
+
+  // product table has category id
+  // category_attributes -- attribute_id
+
+  async #ensureAttributesAllowed(productId, attributes) {
+    const product = await this.productRepository.findById(productId)
+    // now product(object) row gave us the category id, take that id and fetch the attributes from category attributes table 
+    const categoryId = product.category_id;
+    const allowedAttributes = await this.categoryAttribute.findByCategoryId(categoryId);
+
+    // check the incoming attribute matches to data -- incoming == attributes --- to matched ==allowedAttributes
+    // --- attributes must be allowed, each attribute sent must be allowed and active in the category
+
+    for (const attribute of attributes) {
+      const row = allowedAttributes.find((element) => element.id === attribute.attribute_id)
+      if (!row) throw new ValidationError("Attribute is not allowed for this category");
+      if (!row.is_active) throw new ValidationError("Attribute is not active");
+    }
+
+
+    // ---- rule 2: every required attribute must be sent(only consider where required is ture) ---- -- given two arrays attributes, allowedAttributes (db)
+    const requiredRow = allowedAttributes.filter((element) => element.required)
+    for (const attribute of requiredRow) {
+      const required = attributes.some((element) => element.attribute_id === attribute.id)
+      if (!required) throw new ValidationError(`Attribute "${attribute.name}" is required`);
+    }
+
   }
 
   // each attribute_value must belong to the attribute it is sent with
@@ -46,9 +95,20 @@ class VariantService {
   }
 
   // ---------- create (variant + its attribute links in ONE transaction) ----------
+  // ----- product variant
+  // Is the attribute allowed for this product's category? 
+  // Did the user send every attribute that the category requires?
+  // Is the attribute currently active in the database?
+  // Does this exact combination already exist for this product?
+
+
+  //========= Find which attributes are allowed for the product -- productId, attributes
+
+
   async create(data) {
     await this.#ensureProductExists(data.product_id);
     await this.#ensureValuesMatchAttributes(data.attributes);
+    await this.#ensureAttributesAllowed(data.product_id, data.attributes);
 
     const client = await pool.connect();
     try {
@@ -93,6 +153,7 @@ class VariantService {
 
   // ---------- remove (links first, then the variant, in ONE transaction) ----------
   async remove(id) {
+    // entire transaction must run on the same connection.
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -115,10 +176,12 @@ const variantRepository = new VariantRepository();
 const variantAttributeValueRepository = new VariantAttributeValueRepository();
 const productRepository = new ProductRepository();
 const attributeValueRepository = new AttributeValueRepository();
+const categoryAttribute = new CategoryAttributeRepository()
 
 export const variantService = new VariantService(
   variantRepository,
   variantAttributeValueRepository,
   productRepository,
   attributeValueRepository,
+  categoryAttribute,
 );

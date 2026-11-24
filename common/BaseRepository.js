@@ -99,10 +99,10 @@ export class BaseRepository {
     // ===== generic delete =====
     // same for every table, so it lives in the parent
     // returns the deleted row, or null if the id didn't exist
-    async delete(id) {
+    async delete(id, client = pool) {
         const sql = `delete from ${this.tableName} where id=$1 returning *`
 
-        const result = await pool.query(sql, [id]);
+        const result = await client.query(sql, [id]);
 
         return result.rows[0] ?? null
     }

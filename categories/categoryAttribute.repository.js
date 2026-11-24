@@ -23,7 +23,7 @@ export class CategoryAttributeRepository extends BaseRepository {
     // need to join the attributes and category_attributes
     // -- this.tableName = category_attributes
     async findByCategoryId(categoryId) {
-        const sql = `select a.id, a.name, ca.required
+        const sql = `select a.id, a.name, a.is_active, ca.required
         from ${this.tableName} ca JOIN attributes a ON a.id = ca.attribute_id
         where ca.category_id = $1 ORDER BY a.name`;
 

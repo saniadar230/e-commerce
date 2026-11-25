@@ -91,7 +91,8 @@ class ProductController {
       await this.service.delete(req.params.id)
 
       // nothing to return, so data is null
-      return successReponse(res, null, 200, "product deleted successfully")
+      return successReponse(res, null,
+        200, "product deleted successfully")
     } catch (error) {
       next(error)
     }

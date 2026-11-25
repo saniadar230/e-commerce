@@ -4,13 +4,14 @@
 // sends the res
 
 import { productService } from "./product.service.js";
-
+import { successReponse } from "../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
 
 class ProductController {
   constructor(service) {
     this.service = service
 
-    // routes lose `this` -> bind each method to ITSELF (name on the left = name on the right)
+    // routes lose `this` -> bind each method to ITSELF
     this.create = this.create.bind(this)
     this.getAll = this.getAll.bind(this)
     this.getById = this.getById.bind(this)
@@ -23,22 +24,30 @@ class ProductController {
     try {
       const product = await this.service.create(req.body)
 
-      return res.status(201).json({
-        message: "product created successfully",
-        data: product
-      })
+      return successReponse(
+        res,
+        removeResponseFields(product),
+        201,
+        "product created successfully"
+      )
     } catch (error) {
       next(error)
     }
   }
 
-  // GET /products?page=1&limit=10&category_id=3
+  // GET /products?page=1&limit=10&search=abc
   async getAll(req, res, next) {
     try {
       // result = { data, meta }
       const result = await this.service.findAll(req.query)
 
-      return res.status(200).json(result)
+      return successReponse(
+        res,
+        removeResponseFields(result.data),
+        200,
+        "products fetched successfully",
+        result.meta // pagination info (page, limit, total, totalPages)
+      )
     } catch (error) {
       next(error)
     }
@@ -49,7 +58,12 @@ class ProductController {
     try {
       const product = await this.service.findById(req.params.id)
 
-      return res.status(200).json({ data: product })
+      return successReponse(
+        res,
+        removeResponseFields(product),
+        200,
+        "product fetched successfully"
+      )
     } catch (error) {
       next(error)
     }
@@ -60,10 +74,12 @@ class ProductController {
     try {
       const product = await this.service.update(req.params.id, req.body)
 
-      return res.status(200).json({
-        message: "product updated successfully",
-        data: product
-      })
+      return successReponse(
+        res,
+        removeResponseFields(product),
+        200,
+        "product updated successfully"
+      )
     } catch (error) {
       next(error)
     }
@@ -72,10 +88,10 @@ class ProductController {
   // DELETE /products/:id
   async delete(req, res, next) {
     try {
-      const isDeleted = await this.service.delete(req.params.id)
+      await this.service.delete(req.params.id)
 
-      // 200 
-      return res.status(200).json({ isDeleted })
+      // nothing to return, so data is null
+      return successReponse(res, null, 200, "product deleted successfully")
     } catch (error) {
       next(error)
     }

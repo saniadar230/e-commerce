@@ -16,6 +16,7 @@ export const validate = (schema, reqProp = "body") => {
 
     const { error, value } = schema.validate(req[reqProp], {
       abortEarly: false,
+      stripUnknown: true,
     });
 
     if (error) {
@@ -29,8 +30,7 @@ export const validate = (schema, reqProp = "body") => {
 
       return next(
         new ValidationError(
-          `The request ${reqProp} contained ${errorsArray.length} validation ${
-            errorsArray.length === 1 ? "error" : "errors"
+          `The request ${reqProp} contained ${errorsArray.length} validation ${errorsArray.length === 1 ? "error" : "errors"
           }`,
           errorsArray
         )

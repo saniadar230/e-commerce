@@ -31,25 +31,25 @@ export class BaseRepository {
     // limit  = how many rows per page
     // offset = how many rows to skip  (offset = (page - 1) * limit, calculated in the service)
     // returns { data, total } -- total is needed to calculate totalPages
-    async findAll({ limit = 10, offset = 0 } = {}) {
-        // -- query 1: the rows of this page (order by id so pages are stable)
-        const dataSql = `select * from ${this.tableName} order by id limit $1 offset $2`
+    async findAll({ limit = 10, offset = 0, search = null, searchColumn = 'name' } = {}) {
+        // -- filter: only added when a search is given
+        const where = search ? `where ${searchColumn} ilike '%${search}%'` : ''
 
-        // -- query 2: total number of rows in the table
-        const countSql = `select count(*) from ${this.tableName}`
+        // -- query 1: rows of this page
+        const dataSql = `select * from ${this.tableName} ${where} order by id limit $1 offset $2`
 
-        // run both queries together
+        // -- query 2: total rows matching the same filter
+        const countSql = `select count(*) from ${this.tableName} ${where}`
+
         const [dataResult, countResult] = await Promise.all([
             pool.query(dataSql, [limit, offset]),
             pool.query(countSql),
-        ]);
+        ])
 
         return {
             data: dataResult.rows,
-            // count(*) comes back as a string from pg, so convert it
             total: Number(countResult.rows[0].count),
         }
-
     }
 
     // method to getAll

@@ -2,9 +2,16 @@ import Joi from "joi";
 
 
 export const createProductSchema = Joi.object({
-  category_id: Joi.string().uuid().required(),
   name: Joi.string().trim().min(1).max(255).required(),
-  description: Joi.string().trim().allow(null, "").default(null),
+  description: Joi.string().min(3).max(500).trim().allow(null, "").default(null),
+  price: Joi.number().positive().required(),
+  image_url:
+    Joi.string()
+      .trim()
+      .uri({ scheme: ['http', 'https'] })
+      .max(2048)
+      .allow(null, "")
+      .default(null),
 });
 
 
@@ -24,5 +31,5 @@ export const listProductsQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
   category_id: Joi.string().uuid(),
-  search: Joi.string().trim().max(100),
+  search: Joi.string().trim().max(100).allow(null, ""),
 });

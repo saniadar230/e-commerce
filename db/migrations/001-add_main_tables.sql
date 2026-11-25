@@ -72,12 +72,12 @@ CREATE TABLE variants (
   product_id UUID NOT NULL REFERENCES products(id),
   sku        VARCHAR(100) NOT NULL UNIQUE,
   price      DECIMAL(10,2) NOT NULL CHECK (price >= 0),
-  stock      INT NOT NULL DEFAULT 0 CHECK (stock >= 0)
+  stock      INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_variants_product ON variants (product_id);
-
--- ################ LEVEL 3 ################
 
 -- ===== variant_attribute_values =====
 CREATE TABLE variant_attribute_values (

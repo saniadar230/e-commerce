@@ -13,7 +13,7 @@ const cartRouter = express.Router();
 
 cartRouter.get(
   "/",
-  validate(getCartSchema, "body"),
+  validate(getCartSchema, "query"),
   cartController.getCart
 );
 

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "21fbb8b8-3051-4aec-9b05-c3f380fbdd23",
     "name": "SQL Project API",
-    "description": "Postman collection for every active Express route in the SQL Project API. Run the server with `npm run dev`; it listens on port 3000. Create requests save returned IDs into collection variables for later requests.",
+    "description": "Postman requests for the mounted customer, cart, order, payment, and Stripe webhook routes. Run the server with `npm run dev`; it listens on port 3000. Set `stripeWebhookSecret` to the `whsec_...` value from `stripe listen --forward-to localhost:3000/webhooks/stripe/` before sending the signed webhook example.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -20,10 +20,14 @@
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
-    { "key": "customerId", "value": "1", "type": "string" },
-    { "key": "productId", "value": "1", "type": "string" },
-    { "key": "orderId", "value": "1", "type": "string" },
-    { "key": "orderItemId", "value": "1", "type": "string" }
+    { "key": "customerId", "value": "00000000-0000-4000-8000-000000000001", "type": "string" },
+    { "key": "cartId", "value": "00000000-0000-4000-8000-000000000002", "type": "string" },
+    { "key": "variantId", "value": "00000000-0000-4000-8000-000000000003", "type": "string" },
+    { "key": "regionId", "value": "1", "type": "string" },
+    { "key": "orderId", "value": "00000000-0000-4000-8000-000000000004", "type": "string" },
+    { "key": "paymentId", "value": "00000000-0000-4000-8000-000000000005", "type": "string" },
+    { "key": "amountCents", "value": "1000", "type": "string" },
+    { "key": "stripeWebhookSecret", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -50,16 +54,6 @@
           "response": []
         },
         {
-          "name": "Get Customer Orders",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/customers/{{customerId}}/orders?pageNo=1&pageSize=10&sortBy=desc",
-            "description": "Returns a customer's orders. An existing customer with no orders returns an empty list; a nonexistent customer returns `404`."
-          },
-          "response": []
-        },
-        {
           "name": "Create Customer",
           "event": [
             {
@@ -70,7 +64,7 @@
                   "if (pm.response.code === 201) {",
                   "    const json = pm.response.json();",
                   "    const customer = Array.isArray(json.data) ? json.data[0] : json.data;",
-                  "    if (customer && customer.customer_id) pm.collectionVariables.set(\"customerId\", customer.customer_id);",
+                  "    if (customer && customer.id) pm.collectionVariables.set(\"customerId\", customer.id);",
                   "}"
                 ]
               }
@@ -83,7 +77,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customer_name\": \"Ayesha Khan\",\n  \"email\": \"ayesha.khan@example.com\",\n  \"city\": \"Karachi\"\n}",
+              "raw": "{\n  \"name\": \"Ayesha Khan\",\n  \"email\": \"ayesha.khan@example.com\",\n  \"delivery_address\": \"Karachi\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/customers"
@@ -99,7 +93,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customer_name\": \"Ayesha Ahmed\",\n  \"city\": \"Lahore\"\n}",
+              "raw": "{\n  \"name\": \"Ayesha Ahmed\",\n  \"delivery_address\": \"Lahore\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/customers/{{customerId}}",
@@ -120,7 +114,7 @@
       ]
     },
     {
-      "name": "Products",
+      "name": "Products (not mounted in app.js)",
       "item": [
         {
           "name": "List Products",
@@ -202,7 +196,7 @@
       ]
     },
     {
-      "name": "Orders",
+      "name": "Legacy Orders (routes no longer mounted)",
       "item": [
         {
           "name": "List Orders",
@@ -284,7 +278,7 @@
       ]
     },
     {
-      "name": "Order Items",
+      "name": "Legacy Order Items (routes no longer mounted)",
       "item": [
         {
           "name": "List Order Items",
@@ -375,6 +369,306 @@
             },
             "url": "{{baseUrl}}/orders/{{orderId}}/order-items/{{orderItemId}}",
             "description": "Deletes the selected order item. The request body is currently required by the route validation. Returns `404` when the item does not exist for the supplied order."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/cart",
+            "description": "Gets the customer's active cart. The current route reads customer_id from a GET request body."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Cart Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.cart_id) pm.collectionVariables.set(\"cartId\", json.data.cart_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"variant_id\": \"{{variantId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/cart/items"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Cart Item Quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"quantity\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/cart/items/{{variantId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/cart/items/{{variantId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders (Customer)",
+      "item": [
+        {
+          "name": "Create Order from Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.order_id) pm.collectionVariables.set(\"orderId\", json.data.order_id);",
+                  "    if (json.data && json.data.payment_id) pm.collectionVariables.set(\"paymentId\", json.data.payment_id);",
+                  "    if (json.data && json.data.total_amount !== undefined) pm.collectionVariables.set(\"amountCents\", String(json.data.total_amount));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"region_id\": {{regionId}},\n  \"cart_id\": \"{{cartId}}\",\n  \"payment_method\": \"card\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/orders",
+            "description": "Checks out the active cart. Requires an existing customer, region, and cart; the cart must contain available items."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders?customer_id={{customerId}}&pageNo=1&pageSize=10&sortBy=desc"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{orderId}}?customer_id={{customerId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel My Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/orders/{{orderId}}/cancel"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders (Admin)",
+      "item": [
+        {
+          "name": "List All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/orders?pageNo=1&pageSize=10&sortBy=desc"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Any Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/orders/{{orderId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Start Card Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/customer/orders/{{orderId}}/payments",
+            "description": "Creates or reuses a Stripe Checkout Session and returns its checkout_url."
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Card Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/customer/orders/{{orderId}}/payments/retry"
+          },
+          "response": []
+        },
+        {
+          "name": "List Payments for My Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/customer/orders/{{orderId}}/payments?customer_id={{customerId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - List Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/payments?pageNo=1&pageSize=20&sortBy=desc&status=pending&method=card&orderId={{orderId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/payments/{{paymentId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Mark Payment Paid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/admin/payments/{{paymentId}}/mark-paid",
+            "description": "For COD or bank transfer. Card payments are confirmed by the Stripe webhook."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Fail Payment and Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/admin/payments/{{paymentId}}/fail"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Refund Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/admin/payments/{{paymentId}}/refund",
+            "description": "Refunds the remaining balance. To issue a partial refund, include amount as integer cents in the request body."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stripe Webhook",
+      "item": [
+        {
+          "name": "checkout.session.completed (signed test event)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const secret = pm.collectionVariables.get(\"stripeWebhookSecret\");",
+                  "if (!secret) throw new Error(\"Set the stripeWebhookSecret collection variable from Stripe CLI.\");",
+                  "pm.variables.set(\"stripeEventId\", \"evt_\" + pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "const payload = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const timestamp = Math.floor(Date.now() / 1000);",
+                  "const signedPayload = `${timestamp}.${payload}`;",
+                  "const signature = CryptoJS.HmacSHA256(signedPayload, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: \"Stripe-Signature\", value: `t=${timestamp},v1=${signature}` });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{stripeEventId}}\",\n  \"object\": \"event\",\n  \"created\": 1730000000,\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_postman\",\n      \"object\": \"checkout.session\",\n      \"payment_status\": \"paid\",\n      \"amount_total\": {{amountCents}},\n      \"currency\": \"usd\",\n      \"payment_intent\": \"pi_test_postman\",\n      \"metadata\": {\n        \"payment_id\": \"{{paymentId}}\",\n        \"order_id\": \"{{orderId}}\"\n      }\n    }\n  },\n  \"livemode\": false,\n  \"type\": \"checkout.session.completed\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/webhooks/stripe/",
+            "description": "Posts a signed Stripe test event. Use the whsec_ signing secret printed by `stripe listen --forward-to localhost:3000/webhooks/stripe/`; paymentId and amountCents must match a pending card payment. The current controller uses STRIPE_SECRET_KEY for webhook verification, so it must use the endpoint signing secret for this request to be accepted."
           },
           "response": []
         }

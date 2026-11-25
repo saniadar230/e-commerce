@@ -11,12 +11,14 @@ const customerId = Joi.string()
   });
 
 const variantId = Joi.string()
-  .guid({ version: ["uuidv4"] })
+  // PostgreSQL UUID columns can contain any UUID version. Seeded variant IDs
+  // are MD5-derived UUIDs, so requiring UUIDv4 rejects valid database IDs.
+  .guid()
   .required()
   .messages({
     "string.base": "Variant ID must be a string",
     "string.empty": "Variant ID is required",
-    "string.guid": "Variant ID must be a valid UUIDv4",
+    "string.guid": "Variant ID must be a valid UUID",
     "any.required": "Variant ID is required",
   });
 

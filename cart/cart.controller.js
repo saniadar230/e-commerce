@@ -2,7 +2,7 @@ import * as cartService from "./cart.service.js";
 import { successReponse } from "../helperFunctions/apiResponse.js";
 
 export async function getCart(req, res, next) {
-  const { customer_id } = req.body;
+  const { customer_id } = req.query;
 
   const response = await cartService.getCart(customer_id);
 

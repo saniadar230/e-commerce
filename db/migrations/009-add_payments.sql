@@ -8,7 +8,7 @@ CREATE TYPE payment_status AS ENUM (
     'pending',
     'paid',
     'failed',
-    'refunded'
+    'refunded',
     'partially_refunded'
 );
 
@@ -30,10 +30,10 @@ CREATE TABLE payments (
     paid_at TIMESTAMPTZ,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 
-     CONSTRAINT chk_refund_within_amount
+    CONSTRAINT chk_refund_within_amount
         CHECK (refunded_amount >= 0 AND refunded_amount <= amount),
     CONSTRAINT chk_stripe_only_for_card
         CHECK (payment_method = 'card'

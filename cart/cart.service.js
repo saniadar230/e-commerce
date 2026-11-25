@@ -3,26 +3,46 @@ import { ConflictError, NotFoundError } from "../helperFunctions/apiError.js";
 import pool from "../db/db.js";
 
 export async function getCart(customer_id) {
-  // get all products from the cart
-  const cart = await pool.query(
-    `SELECT id FROM carts where customer_id = $1 AND status = 'active'`,
+  const cartResult = await pool.query(
+    `SELECT id, status FROM carts
+     WHERE customer_id = $1 AND status = 'active'`,
     [customer_id]
   );
+  const cart = cartResult.rows[0];
 
-  const cart_id = cart.rows[0].id;
+  if (!cart) {
+    return {
+      data: { id: null, status: "active", items: [] },
+      pagination: null,
+    };
+  }
 
-  const cart_products = await pool.query(
-    `SELECT p.name, v.price, quantity FROM cart_products cp
-    INNER JOIN variants v
-    ON v.id = cp.variant_id
-    INNER JOIN products p
-    ON v.product_id = p.id
-    where customer_id = $1 AND status = 'active'`,
-    [customer_id]
+  const itemResult = await pool.query(
+    `SELECT cp.variant_id, cp.quantity,
+            p.id AS product_id, p.name AS product_name,
+            c.name AS category_name, v.sku,
+            ROUND(v.price * 100)::bigint AS unit_price,
+            v.stock,
+            COALESCE(variant_attrs.size, '') AS size
+       FROM cart_products cp
+       JOIN variants v ON v.id = cp.variant_id
+       JOIN products p ON p.id = v.product_id
+       JOIN categories c ON c.id = p.category_id
+       LEFT JOIN LATERAL (
+         SELECT MAX(av.value) FILTER (WHERE LOWER(a.name) = 'size') AS size
+           FROM variant_attribute_values vav
+           JOIN attributes a ON a.id = vav.attribute_id
+           JOIN attribute_values av ON av.id = vav.attribute_value_id
+          WHERE vav.variant_id = v.id
+       ) variant_attrs ON TRUE
+      WHERE cp.cart_id = $1
+      ORDER BY cp.created_at, p.name`,
+    [cart.id]
   );
 
   return {
-    data: cart ? cart : [],
+    data: { ...cart, items: itemResult.rows },
+    pagination: null,
   };
 }
 
@@ -32,7 +52,7 @@ export async function addCartItem(variant_id, customer_id) {
     const customer = await client.query(
       `SELECT id
        FROM customers
-       WHERE id = $1 AND is_deleted = false
+       WHERE id = $1
        FOR SHARE`,
       [customer_id]
     );
@@ -42,9 +62,9 @@ export async function addCartItem(variant_id, customer_id) {
 
     // 2. Check whether variant exists and is not deleted
     const variant = await client.query(
-      `SELECT id, stock_quantity
+      `SELECT id, stock
        FROM variants
-       WHERE id = $1 AND is_deleted = false
+       WHERE id = $1
        FOR SHARE`,
       [variant_id]
     );
@@ -52,7 +72,7 @@ export async function addCartItem(variant_id, customer_id) {
       throw new NotFoundError("Variant not found");
     }
 
-    if (variant.rows[0].stock_quantity < 1) {
+    if (variant.rows[0].stock < 1) {
       throw new ConflictError("Variant is out of stock");
     }
 
@@ -67,7 +87,7 @@ export async function addCartItem(variant_id, customer_id) {
       [customer_id]
     );
 
-    cart_id = cart.rows[0].id;
+    const cart_id = cart.rows[0].id;
 
     // 5. Insert the item or increment quantity atomically
     const result = await client.query(
@@ -80,7 +100,7 @@ export async function addCartItem(variant_id, customer_id) {
            WHERE cart_products.quantity < 10
              AND cart_products.quantity < $3
            RETURNING *`,
-      [cart_id, variant_id, variant.rows[0].stock_quantity]
+      [cart_id, variant_id, variant.rows[0].stock]
     );
 
     if (result.rows.length === 0) {
@@ -107,7 +127,7 @@ export async function updateCartItem(variant_id, customer_id, quantity) {
     const customer = await client.query(
       `SELECT id
        FROM customers
-       WHERE id = $1 AND is_deleted = false`,
+       WHERE id = $1 `,
       [customer_id]
     );
     if (customer.rows.length === 0) {
@@ -116,9 +136,9 @@ export async function updateCartItem(variant_id, customer_id, quantity) {
 
     // 2. Check whether variant exists and is not deleted
     const variant = await client.query(
-      `SELECT id, stock_quantity
+      `SELECT id, stock
        FROM variants
-       WHERE id = $1 AND is_deleted = false
+       WHERE id = $1
        FOR SHARE
        `,
       [variant_id]
@@ -127,7 +147,7 @@ export async function updateCartItem(variant_id, customer_id, quantity) {
       throw new NotFoundError("Variant not found");
     }
 
-    if (quantity > variant.rows[0].stock_quantity) {
+    if (quantity > variant.rows[0].stock) {
       throw new ConflictError("Requested quantity exceeds available inventory");
     }
 
@@ -182,7 +202,7 @@ export async function removeCartItem(variant_id, customer_id) {
   const customer = await pool.query(
     `SELECT id
          FROM customers
-         WHERE id = $1 AND is_deleted = false`,
+         WHERE id = $1`,
     [customer_id]
   );
   if (customer.rows.length === 0) {
@@ -193,7 +213,7 @@ export async function removeCartItem(variant_id, customer_id) {
   const variant = await pool.query(
     `SELECT id
      FROM variants
-     WHERE id = $1 AND is_deleted = false
+     WHERE id = $1
      FOR SHARE`,
     [variant_id]
   );

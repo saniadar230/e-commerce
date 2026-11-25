@@ -21,10 +21,9 @@ export const orderIdParamsSchema = Joi.object({
 // POST /orders
 export const createOrderSchema = Joi.object({
   customer_id: customerId,
-  region_id: Joi.number().integer().positive().required().messages({
-    "number.base": "Region ID must be a number",
-    "number.integer": "Region ID must be an integer",
-    "number.positive": "Region ID must be positive",
+  region_id: Joi.string().guid().required().messages({
+    "string.base": "Region ID must be a UUID",
+    "string.guid": "Region ID must be a valid UUID",
     "any.required": "Region ID is required",
   }),
   cart_id: uuid.required().messages({ "any.required": "Cart ID is required" }),

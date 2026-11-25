@@ -8,8 +8,10 @@ import {
 } from "./payments/payment.routes.js";
 import { customerOrderRouter } from "./orders/order.routes.js";
 import { adminOrderRouter } from "./orders/order.routes.js";
-import cors from 'cors'
+import cors from "cors";
+
 import dotenv from "dotenv";
+import morgan from "morgan";
 
 dotenv.config();
 // import productRouter from "./products/product.routes.js";
@@ -26,9 +28,17 @@ import attributeValueRoutes from "./attributes/attributeValue.routes.js";
 import regionRoutes from "./regions/region.routes.js";
 import promotionRoutes from "./promotions/promotion.routes.js";
 import campaignRoutes from "./campaigns/campaign.routes.js";
-
+import homeRouter from "./home/home.routes.js";
 
 const app = express();
+
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Your frontend URL
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
 
 app.use(
   "/webhooks/stripe",
@@ -36,10 +46,10 @@ app.use(
   stripeWebhookRouter
 );
 
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({ origin: "http://localhost:5173" }));
 
 app.use(express.json());
-
+app.use(morgan("dev"));
 // Customer Routes
 app.use("/customers", customerRouter);
 app.use("/cart", cartRouter);
@@ -60,6 +70,7 @@ app.use("/attribute-values", attributeValueRoutes);
 app.use("/regions", regionRoutes);
 app.use("/promotions", promotionRoutes);
 app.use("/campaigns", campaignRoutes);
+app.use("/home", homeRouter);
 
 app.use((req, res) => {
   return res.status(404).send("Page Not Found");

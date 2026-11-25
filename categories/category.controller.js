@@ -3,135 +3,130 @@
 // call the service
 // sends the res
 
-
 import { categoryService } from "./category.service.js";
 
-
 class CategoryController {
-    // CategoryController needs to recieve the service via its controller
-    constructor(service) { // parameter 
-        this.service = service
+  // CategoryController needs to recieve the service via its controller
+  constructor(service) {
+    // parameter
+    this.service = service;
 
+    // IMPORTANT: routes pass controller.create without the object (router.post("/", controller.create))
+    // so `this` would be lost -- bind keeps `this` pointing to the controller
+    this.create = this.create.bind(this);
+    this.updateCategories = this.updateCategories.bind(this);
+    this.getAll = this.getAll.bind(this);
+    this.getById = this.getById.bind(this);
+    this.delete = this.delete.bind(this);
 
-        // IMPORTANT: routes pass controller.create without the object (router.post("/", controller.create))
-        // so `this` would be lost -- bind keeps `this` pointing to the controller
-        this.create = this.create.bind(this)
-        this.updateCategories = this.updateCategories.bind(this)
-        this.getAll = this.getAll.bind(this)
-        this.getById = this.getById.bind(this)
-        this.delete = this.delete.bind(this)
+    this.getTopLevel = this.getTopLevel.bind(this);
+    this.getBreadcrumb = this.getBreadcrumb.bind(this);
+    this.getDescendants = this.getDescendants.bind(this);
+    this.getChildren = this.getChildren.bind(this);
+    this.getTree = this.getTree.bind(this);
+  }
 
-        this.getTopLevel = this.getTopLevel.bind(this)
-        this.getBreadcrumb = this.getBreadcrumb.bind(this)
-        this.getDescendants = this.getDescendants.bind(this)
-        this.getChildren = this.getChildren.bind(this)
-        this.getTree = this.getTree.bind(this)
+  async getAll(req, res, next) {
+    try {
+      const result = await this.service.findAll(req.query);
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async getAll(req, res, next) {
-        try {
-            const result = await this.service.findAll(req.query)
+  async getById(req, res, next) {
+    try {
+      const category = await this.service.findById(req.params.id);
 
-            return res.status(200).json(result)
-        } catch (error) {
-            next(error)
-        }
+      return res.status(200).json({ data: category });
+    } catch (error) {
+      next(error);
     }
+  }
+  async create(req, res, next) {
+    // call the service.create
+    try {
+      const category = await this.service.create(req.body);
 
-    async getById(req, res, next) {
-        try {
-            const category = await this.service.findById(req.params.id)
-
-            return res.status(200).json({ data: category })
-
-        } catch (error) {
-            next(error)
-        }
+      return res.status(201).json({
+        message: "category created successfully",
+        data: category,
+      });
+    } catch (error) {
+      next(error);
     }
-    async create(req, res, next) {
-        // call the service.create
-        try {
-            const category = await this.service.create(req.body)
+  }
 
-            return res.status(201).json({
-                message: "category created successfully",
-                data: category
-            })
-        } catch (error) {
-            next(error)
-        }
+  async updateCategories(req, res, next) {
+    try {
+      const updatedData = await this.service.updateCategories(
+        req.params.id,
+        req.body
+      );
 
+      return res.status(200).json({ updatedData });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async updateCategories(req, res, next) {
-        try {
-            const updatedData = await this.service.updateCategories(req.params.id, req.body)
+  async delete(req, res, next) {
+    try {
+      const deleted = await this.service.delete(req.params.id);
 
-            return res.status(200).json({ updatedData });
-
-        } catch (error) {
-            next(error)
-        }
+      return res.status(200).json({ deleted });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async delete(req, res, next) {
-        try {
-            const deleted = await this.service.delete(req.params.id)
-
-            return res.status(200).json({ deleted })
-
-        } catch (error) {
-            next(error)
-        }
+  // ========== get top level
+  async getTopLevel(req, res, next) {
+    try {
+      const data = await this.service.findTopLevelCategories();
+      return res.status(200).json({ data });
+    } catch (error) {
+      next(error);
     }
+  }
 
-
-
-    // ========== get top level
-    async getTopLevel(req, res, next) {
-        try {
-            const data = await this.service.findTopLevelCategories()
-            return res.status(200).json({ data })
-        } catch (error) {
-            next(error)
-        }
+  async getBreadcrumb(req, res, next) {
+    try {
+      const data = await this.service.findAncestorsById(req.params.id);
+      return res.status(200).json({ data });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async getBreadcrumb(req, res, next) {
-        try {
-            const data = await this.service.findAncestorsById(req.params.id)
-            return res.status(200).json({ data })
-        } catch (error) {
-            next(error)
-        }
+  async getDescendants(req, res, next) {
+    try {
+      const data = await this.service.findDescendantsById(req.params.id);
+      return res.status(200).json({ data });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async getDescendants(req, res, next) {
-        try {
-            const data = await this.service.findDescendantsById(req.params.id)
-            return res.status(200).json({ data })
-        } catch (error) {
-            next(error)
-        }
+  async getChildren(req, res, next) {
+    try {
+      const data = await this.service.findDirectChildren(req.params.id);
+      return res.status(200).json({ data });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    async getChildren(req, res, next) {
-        try {
-            const data = await this.service.findDirectChildren(req.params.id)
-            return res.status(200).json({ data })
-        } catch (error) {
-            next(error)
-        }
+  async getTree(req, res, next) {
+    try {
+      const data = await this.service.findCategoryTree();
+      return res.status(200).json({ data });
+    } catch (error) {
+      next(error);
     }
-
-    async getTree(req, res, next) {
-        try {
-            const data = await this.service.findCategoryTree()
-            return res.status(200).json({ data })
-        } catch (error) {
-            next(error)
-        }
-    }
+  }
 }
 
-export const categoryController = new CategoryController(categoryService) // value of service parameter 
+export const categoryController = new CategoryController(categoryService); // value of service parameter

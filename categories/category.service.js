@@ -25,7 +25,10 @@ class CategoryService {
     // this.repository refers to the CategoryRepository instance,
     // which extends BaseRepository.
     // Therefore, the instance can access the inherited findAll() method.
-    const { data, total } = await this.categoryRepository.findAll({ limit, offset });
+    const { data, total } = await this.categoryRepository.findAll({
+      limit,
+      offset,
+    });
 
     return {
       data,
@@ -106,14 +109,43 @@ class CategoryService {
       throw new NotFoundError("category not found");
     }
 
-    return descendants;
+    const nestedTree = this.intoTreeStructure(descendants);
+
+    return nestedTree;
+  }
+
+  intoTreeStructure(descendants) {
+    const nodesMap = new Map();
+
+    // Create nodes
+    for (const category of descendants) {
+      nodesMap.set(category.id, {
+        ...category,
+        children: [],
+      });
+    }
+
+    // Build tree
+    const roots = [];
+
+    for (const category of descendants) {
+      const node = nodesMap.get(category.id);
+
+      if (nodesMap.has(category.parent_id)) {
+        const parent = nodesMap.get(category.parent_id);
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    return roots;
   }
 
   // ======== direct children of a parent
   async findDirectChildren(parentId) {
     // a leaf category has no children (valid), so check the parent itself first
     await this.findById(parentId); // throws 404 if parent doesn't exist
-
     return this.categoryRepository.getDirectChildren(parentId);
   }
 
@@ -138,8 +170,6 @@ class CategoryService {
 
     return roots;
   }
-
-
 }
 
 // instance for repository ---

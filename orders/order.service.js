@@ -1,4 +1,5 @@
 import pool from "../db/db.js";
+import withTransaction from "../helperFunctions/withTransaction.js";
 import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
 import {
   ValidationError,
@@ -39,7 +40,7 @@ export async function getAllOrders(pageNo, pageSize, sortBy) {
   };
 }
 
-export async function getOrderById(order_id, customer_id = null) {
+export async function getOrderById(orderId, customerId = null) {
   const values = [orderId];
 
   let query = `
@@ -78,35 +79,48 @@ export async function getOrderById(order_id, customer_id = null) {
     [orderId]
   );
 
-  const finalResponse = removeResponseFields(order.rows);
-
   return { ...order.rows[0], items: items.rows, payments: payments.rows };
 }
 
-export async function getCustomerOrders(customer_id, pageNo, pageSize, sortBy) {
+export async function getCustomerOrders(
+  customer_id,
+  pageNo = 1,
+  pageSize = 10,
+  sortBy = "DESC"
+) {
   const totalCount = await pool.query(
     `SELECT COUNT(*) FROM orders o WHERE customer_id = $1`,
     [customer_id]
   );
 
-  const totalPages = Math.ceil(Number(totalCount.rows[0].count) / pageSize);
-  if (pageNo > totalPages)
+  const totalRecords = Number(totalCount.rows[0].count);
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  if (totalPages > 0 && pageNo > totalPages)
     throw new ValidationError(
       `Page number cannot be greater than total number of pages: ${totalPages}`
     );
 
-  const totalRecords = totalCount.rows[0].count;
   const hasNextPage = pageNo < totalPages;
   const hasPreviousPage = pageNo !== 1;
 
   const orders = await pool.query(
-    `SELECT * FROM orders c 
-        WHERE customer_id = $1
-        ORDER BY c.id ${sortBy.toUpperCase()} LIMIT $2 OFFSET $3`,
+    `SELECT o.id, o.status, o.total_amount, o.created_at,
+            payment.payment_method, payment.payment_status
+       FROM orders o
+       LEFT JOIN LATERAL (
+         SELECT payment_method, payment_status
+           FROM payments
+          WHERE order_id = o.id
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1
+       ) payment ON TRUE
+      WHERE o.customer_id = $1
+      ORDER BY o.created_at ${sortBy === "ASC" ? "ASC" : "DESC"}, o.id DESC
+      LIMIT $2 OFFSET $3`,
     [customer_id, pageSize, (pageNo - 1) * pageSize]
   );
 
-  const finalResponse = removeResponseFields(order.rows);
+  const finalResponse = orders.rows;
 
   return {
     pagination: {
@@ -123,7 +137,12 @@ export async function getCustomerOrders(customer_id, pageNo, pageSize, sortBy) {
 
 // All money values (prices, discounts, totals) are integer cents.
 // node-pg returns bigint/numeric columns as strings, so convert with Number().
-export async function createOrder(customer_id, region_id, cart_id) {
+export async function createOrder(
+  customerId,
+  regionId,
+  cartId,
+  paymentMethod
+) {
   return withTransaction(async (client) => {
     // 1. Customer must exist and not be deleted
     const customer = await client.query(
@@ -131,14 +150,14 @@ export async function createOrder(customer_id, region_id, cart_id) {
         FROM customers
         WHERE id = $1 AND is_deleted = false
         FOR SHARE`,
-      [customer_id]
+      [customerId]
     );
     if (customer.rows.length === 0) {
       throw new NotFoundError("Customer not found");
     }
 
     const region = await client.query(`SELECT id FROM regions WHERE id = $1`, [
-      region_id,
+      regionId,
     ]);
     if (region.rows.length === 0) throw new NotFoundError("Region not found");
 
@@ -151,7 +170,7 @@ export async function createOrder(customer_id, region_id, cart_id) {
           AND customer_id = $2
           AND status = 'active'
         FOR UPDATE`,
-      [cart_id, customer_id]
+      [cartId, customerId]
     );
     if (cart.rows.length === 0) {
       throw new NotFoundError("Cart not found");
@@ -175,25 +194,19 @@ export async function createOrder(customer_id, region_id, cart_id) {
        JOIN products p ON p.id = v.product_id
        LEFT JOIN LATERAL (
           SELECT pr.id AS promotion_id, pr.discount_type, pr.discount_value
-            FROM campaign_applications ca
-            JOIN campaigns  cg ON cg.id = ca.campaign_id
-                              AND cg.status = 'active'
-                              AND NOW() >= cg.start_date AND NOW() < cg.end_date
-            JOIN promotions pr ON pr.id = ca.promotion_id AND pr.status = 'active'
-           WHERE (ca.region_id IS NULL OR ca.region_id = $2::int)
-             AND (
-                   ca.scope = 'global'
-                OR (ca.scope = 'category' AND ca.category_id = p.category_id)
-                OR (ca.scope = 'product'  AND ca.product_id  = p.id)
-                OR (ca.scope = 'variant'  AND ca.variant_id  = v.id)
-             )
-           ORDER BY
-             CASE ca.scope WHEN 'variant'  THEN 1
-                           WHEN 'product'  THEN 2
-                           WHEN 'category' THEN 3
-                           ELSE 4 END,
-             (ca.region_id IS NULL),   -- region-specific beats region-wide
-             ca.id
+            FROM variant_current_promotions vcp
+            JOIN campaign_applications ca
+              ON ca.id = vcp.campaign_application_id
+            JOIN campaigns cg
+              ON cg.id = ca.campaign_id
+             AND cg.status = 'active'
+             AND NOW() >= cg.start_date AND NOW() < cg.end_date
+            JOIN promotions pr
+              ON pr.id = ca.promotion_id
+             AND pr.status = 'active'
+           WHERE vcp.variant_id = v.id
+             AND (vcp.region_id = $2::uuid OR vcp.region_id IS NULL)
+           ORDER BY (vcp.region_id IS NULL), vcp.updated_at DESC
            LIMIT 1
        ) promo ON true
        WHERE cp.cart_id = $1
@@ -296,7 +309,7 @@ export async function createOrder(customer_id, region_id, cart_id) {
 
     // 8. Close the cart so it can't be checked out again
     await client.query(`UPDATE carts SET status = 'converted' WHERE id = $1`, [
-      cart_id,
+      cartId,
     ]);
 
     return {

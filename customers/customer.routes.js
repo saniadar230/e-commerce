@@ -1,3 +1,4 @@
+// customer.routes.js
 import express from "express";
 import {
   createCustomerSchema,
@@ -5,10 +6,11 @@ import {
 } from "./customer.schema.js";
 import { getListSchema, idSchema } from "../schemas/common.js";
 import { validate } from "../middleware/validate.js";
-import * as customerController from "./customer.controller.js";
+import customerController from "./customer.controller.js"; // default export now
 
 const customerRouter = express.Router();
 
+// /customers
 customerRouter
   .route("/")
   .get(validate(getListSchema, "query"), customerController.getAllCustomers)
@@ -17,6 +19,7 @@ customerRouter
     customerController.createCustomer
   );
 
+// /customers/:id
 customerRouter
   .route("/:id")
   .get(validate(idSchema, "params"), customerController.getCustomerById)
@@ -26,12 +29,5 @@ customerRouter
     customerController.updateCustomer
   )
   .delete(validate(idSchema, "params"), customerController.deleteCustomer);
-
-// customerRouter.get(
-//   "/:id/orders",
-//   validate(idSchema, "params"),
-//   validate(getListSchema, "query"),
-//   customerController.getCustomerOrders
-// );
 
 export default customerRouter;

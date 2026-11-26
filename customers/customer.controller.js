@@ -1,97 +1,79 @@
-import * as customerService from "./customer.service.js";
 import { successReponse } from "../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
+import CustomerService from "./customer.service.js";
 
-export async function getAllCustomers(req, res, next) {
-  const { pageNo = 1, pageSize = 10, sortBy = "asc", search = "" } = req.query;
+class CustomerController {
+  constructor(customerService = new CustomerService()) {
+    this.customerService = customerService;
+  }
 
-  const response = await customerService.getAllCustomers(
-    pageNo,
-    pageSize,
-    sortBy,
-    search
-  );
+  // arrow functions keep `this` when the router passes them as callbacks
+  getAllCustomers = async (req, res) => {
+    const { data, meta } = await this.customerService.getAllCustomers(req.query);
 
-  return successReponse(
-    res,
-    response.data,
-    200,
-    "Customers were retrieved successfully!",
-    response.pagination
-  );
+    return successReponse(
+      res,
+      removeResponseFields(data),
+      200,
+      "Customers were retrieved successfully!",
+      meta
+    );
+  };
+
+  getCustomerById = async (req, res) => {
+    const customer = await this.customerService.getCustomerById(req.params.id);
+
+    return successReponse(
+      res,
+      removeResponseFields([customer])[0],
+      200,
+      "Customer was retrieved successfully!"
+    );
+  };
+
+  createCustomer = async (req, res) => {
+    const { name, email, delivery_address } = req.body;
+
+    const customer = await this.customerService.createCustomer({
+      name,
+      email,
+      delivery_address,
+    });
+
+    return successReponse(
+      res,
+      removeResponseFields([customer])[0],
+      201,
+      "Customer was created successfully!"
+    );
+  };
+
+  updateCustomer = async (req, res) => {
+    const { name, delivery_address } = req.body;
+
+    // only fields that were sent
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (delivery_address) updateData.delivery_address = delivery_address;
+
+    const customer = await this.customerService.updateCustomer(
+      req.params.id,
+      updateData
+    );
+
+    return successReponse(
+      res,
+      removeResponseFields([customer])[0],
+      200,
+      "Customer was updated successfully!"
+    );
+  };
+
+  deleteCustomer = async (req, res) => {
+    await this.customerService.deleteCustomer(req.params.id);
+
+    return successReponse(res, {}, 204, "Customer was deleted successfully!");
+  };
 }
 
-export async function getCustomerById(req, res, next) {
-  const { id } = req.params;
-
-  const response = await customerService.getCustomerById(id);
-
-  return successReponse(
-    res,
-    response,
-    200,
-    "Customer was retrieved successfully!"
-  );
-}
-
-// export async function getCustomerOrders(req, res, next) {
-//   const { id } = req.params;
-//   const { pageNo = 1, pageSize = 10, sortBy = "DESC" } = req.query;
-
-//   const response = await customerService.getCustomerOrders(
-//     id,
-//     pageNo,
-//     pageSize,
-//     sortBy
-//   );
-
-//   return successReponse(
-//     res,
-//     response.data,
-//     200,
-//     "Orders were retrieved successfully!",
-//     response.pagination
-//   );
-// }
-
-export async function createCustomer(req, res, next) {
-  const { name, email, delivery_address } = req.body;
-
-  const response = await customerService.createCustomer(
-    name,
-    email,
-    delivery_address
-  );
-
-  return successReponse(
-    res,
-    response,
-    201,
-    "Customer was created successfully!"
-  );
-}
-
-export async function updateCustomer(req, res) {
-  const { name, delivery_address } = req.body;
-  const { id } = req.params;
-
-  let updateData = {};
-  if (name) updateData.name = name;
-  if (delivery_address) updateData.delivery_address = delivery_address;
-
-  const response = await customerService.updateCustomer(id, updateData);
-
-  return successReponse(
-    res,
-    response,
-    200,
-    "Customer was updated successfully!"
-  );
-}
-
-export async function deleteCustomer(req, res, next) {
-  const { id } = req.params;
-
-  await customerService.deleteCustomer(id);
-
-  return successReponse(res, {}, 204, "Customer was deleted successfully!");
-}
+export default new CustomerController();

@@ -12,19 +12,7 @@ class ProductService {
     this.categoryRepository = categoryRepository;
   }
 
-  // ===== relationship check (used by create, update and list) =====
-  // product can only belong to a category that exists
-  async #ensureCategoryExists(categoryId) {
-    const category = await this.categoryRepository.findById(categoryId);
-
-    if (!category) {
-      throw new NotFoundError("category not found");
-    }
-  }
-
   async create(data) {
-    // 1. category must exist
-    // 2. then create the product
     return this.productRepository.create(data);
   }
 
@@ -33,19 +21,20 @@ class ProductService {
     const page = Math.max(parseInt(query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 10, 1), 100);
     const offset = (page - 1) * limit;
-    const searchColumn = "name"
-
+    const searchColumn = "name";
 
     const { data, total } = await this.productRepository.findAll({
-      limit, offset,
+      limit,
+      offset,
       search: query.search ?? null,
-      searchColumn
+      searchColumn,
     });
 
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   }
-
-
 
   async findById(id) {
     const product = await this.productRepository.findById(id);

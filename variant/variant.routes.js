@@ -6,7 +6,7 @@ import { createVariantSchema, updateVariantSchema, variantIdParamSchema, listVar
 const router = Router();
 
 router.post("/", validate(createVariantSchema, "body",), controller.create);
-router.get("/", validate(listVariantQuerySchema, "query",), controller.getByProduct);
+router.get("/", validate(listVariantQuerySchema, "query",), controller.getAll);
 router.get("/:id", validate(variantIdParamSchema, "params"), controller.getById);
 router.patch("/:id", validate(variantIdParamSchema, "params"), validate(updateVariantSchema), controller.update);
 router.delete("/:id", validate(variantIdParamSchema, "params"), controller.remove);

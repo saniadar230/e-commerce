@@ -17,7 +17,8 @@ create table variants (
     quantity    int not null check (quantity >= 0),
     price       decimal(10, 2) not null,
     created_at  timestamptz not null default now(),
-    updated_at  timestamptz not null default now()
+    updated_at  timestamptz not null default now(),
+    is_deleted  boolean not null default false
 );
 
 -- ===== attributes =====
@@ -27,5 +28,6 @@ create table attributes (
     name        varchar(255) not null,
     value       text,
     created_at  timestamptz not null default now(),
-    updated_at  timestamptz not null default now()
+    updated_at  timestamptz not null default now(),
+    is_deleted  boolean not null default false
 );

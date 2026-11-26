@@ -2,23 +2,41 @@
 
 import { BaseRepository } from "../common/BaseRepository.js";
 import pool from "../db/db.js"
-
+import format from "pg-format"
 
 // extends from base repository
 
 export class AttributeRepository extends BaseRepository {
     // -- to use base class contructor -- just use super() === "attribute == this.tablename ------- [] == this.updatedColums for patch req"
     constructor() {
-        super("attributes", ["name", "is_active"])
+        super("attributes", ["name", "value"])
     }
 
     // override create --don't use from base repository
     async create(data) {
-        const sql = `insert into ${this.tableName} (name) values ($1) RETURNING *`
-        const attribute = await pool.query(sql, [data.name],)
+        const sql = `insert into ${this.tableName} (variant_id,name, value) values ($1, $2, $3) RETURNING *`
+        const attribute = await pool.query(sql, [data.variant_id, data.name, data.value])
 
         return attribute.rows[0]
     }
+
+
+    async bulkCreateAttributes(variant_id, att, client) {
+        const rows = att.map((attr) => [variant_id, attr.name, attr.value]);
+        console.log(rows);
+        const query = format(`INSERT INTO ${this.tableName} (variant_id, name, value) VALUES %L RETURNING *`, rows);
+
+        const attributes = await client.query(query);
+        return attributes.rows;
+    }
+
+
+    // async () {
+    //     const sql = `select p.name from products p join ${this.tableName} v on p.id = v.product_id order by p.id asc;`
+    //     const result = await pool.query(sql, [])
+
+    //     return result.rows;
+    // }
 
     // find attributes by values
     // ===== one attribute + its values inside =====

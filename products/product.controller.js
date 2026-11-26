@@ -36,66 +36,50 @@ class ProductController {
   }
 
   // GET /products?page=1&limit=10&search=abc
-  async getAll(req, res, next) {
-    try {
-      // result = { data, meta }
-      const result = await this.service.findAll(req.query)
+  async getAll(req, res) {
+    // result = { data, meta }
+    const result = await this.service.findAll(req.query)
 
-      return successReponse(
-        res,
-        removeResponseFields(result.data),
-        200,
-        "products fetched successfully",
-        result.meta // pagination info (page, limit, total, totalPages)
-      )
-    } catch (error) {
-      next(error)
-    }
+    return successReponse(
+      res,
+      removeResponseFields(result.data),
+      200,
+      "products fetched successfully",
+      result.meta // pagination info (page, limit, total, totalPages)
+    )
   }
 
   // GET /products/:id
-  async getById(req, res, next) {
-    try {
-      const product = await this.service.findById(req.params.id)
+  async getById(req, res) {
+    const product = await this.service.findById(req.params.id)
 
-      return successReponse(
-        res,
-        removeResponseFields(product),
-        200,
-        "product fetched successfully"
-      )
-    } catch (error) {
-      next(error)
-    }
+    return successReponse(
+      res,
+      removeResponseFields(product),
+      200,
+      "product fetched successfully"
+    )
   }
 
   // PATCH /products/:id
-  async update(req, res, next) {
-    try {
-      const product = await this.service.update(req.params.id, req.body)
+  async update(req, res) {
+    const product = await this.service.update(req.params.id, req.body)
 
-      return successReponse(
-        res,
-        removeResponseFields(product),
-        200,
-        "product updated successfully"
-      )
-    } catch (error) {
-      next(error)
-    }
+    return successReponse(
+      res,
+      removeResponseFields(product),
+      200,
+      "product updated successfully"
+    )
   }
 
   // DELETE /products/:id
-  async delete(req, res, next) {
-    try {
-      await this.service.delete(req.params.id)
+  async delete(req, res) {
+    await this.service.delete(req.params.id)
 
-      // nothing to return, so data is null
-      return successReponse(res, null,
-        200, "product deleted successfully")
-    } catch (error) {
-      next(error)
-    }
+    // nothing to return, so data is null
+    return successReponse(res, null,
+      200, "product deleted successfully")
   }
 }
 

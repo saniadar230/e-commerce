@@ -1,4 +1,6 @@
 import { variantService } from "./variant.service.js";
+import { successReponse } from "../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
 
 class VariantController {
     constructor(service) {
@@ -11,52 +13,76 @@ class VariantController {
         this.remove = this.remove.bind(this);
     }
 
-    // GET /products?page=1&limit=10&category_id=3
-    async getAll(req, res, next) {
-        try {
-            // result = { data, meta }
-            const result = await this.service.findAll(req.query)
+    // GET /variants?page=1&limit=10
+    async getAll(req, res) {
+        // result = { data, meta }
+        const result = await this.service.findAll(req.query)
 
-            return res.status(200).json(result)
-        } catch (error) {
-            next(error)
-        }
+        return successReponse(
+            res,
+            removeResponseFields(result.data),
+            200,
+            "variants fetched successfully",
+            result.meta // pagination info
+        )
     }
 
-    async create(req, res, next) {
-        try {
-            const data = await this.service.create(req.body);
-            res.status(201).json({ data });
-        } catch (err) { next(err); }
+    // POST /variants
+    async create(req, res) {
+        const data = await this.service.create(req.body);
+
+        console.log("----- variant atrr", data);
+
+        return successReponse(
+            res,
+            removeResponseFields(data),
+            201,
+            "variant created successfully"
+        )
     }
 
-    async getByProduct(req, res, next) {
+    // GET /variants/by-product?product_id=...
+    async getByProduct(req, res) {
+        const data = await this.service.getByProduct(req.query.product_id);
 
-        try {
-            const data = await this.service.getByProduct(req.query.product_id);
-            res.status(200).json({ data });
-        } catch (err) { next(err); }
+        return successReponse(
+            res,
+            removeResponseFields(data),
+            200,
+            "variants fetched successfully"
+        )
     }
 
-    async getById(req, res, next) {
-        try {
-            const data = await this.service.getById(req.params.id);
-            res.status(200).json({ data });
-        } catch (err) { next(err); }
+    // GET /variants/:id
+    async getById(req, res) {
+        const data = await this.service.getById(req.params.id);
+
+        return successReponse(
+            res,
+            removeResponseFields(data),
+            200,
+            "variant fetched successfully"
+        )
     }
 
-    async update(req, res, next) {
-        try {
-            const data = await this.service.update(req.params.id, req.body);
-            res.status(200).json({ data });
-        } catch (err) { next(err); }
+    // PATCH /variants/:id
+    async update(req, res) {
+        const data = await this.service.update(req.params.id, req.body);
+
+        return successReponse(
+            res,
+            removeResponseFields(data),
+            200,
+            "variant updated successfully"
+        )
     }
 
-    async remove(req, res, next) {
-        try {
-            await this.service.remove(req.params.id);
-            res.status(204).send();
-        } catch (err) { next(err); }
+    // DELETE /variants/:id
+    async remove(req, res) {
+        await this.service.remove(req.params.id);
+
+        // 200 with a message instead of 204, because 204 cannot have a body
+        return successReponse(res, null, 200, "variant deleted successfully")
     }
 }
 

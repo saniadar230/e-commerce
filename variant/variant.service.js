@@ -1,13 +1,12 @@
 import pool from "../db/db.js";
 import { NotFoundError, ValidationError } from "../helperFunctions/apiError.js";
 import { VariantRepository } from "./variant.repository.js";
-import { VariantAttributeValueRepository } from "./variantAttributeValue.repository.js";
 import { ProductRepository } from "../products/product.repository.js";
-import { AttributeValueRepository } from "../attributes/attributeValue.repository.js";
+import { AttributeRepository } from "../attributes/attribute.repository.js";
 
 import { getPagination, buildMeta } from "../common/pagination.js";
 // for check the allowed attributes for particular product
-import { CategoryAttributeRepository } from "../categories/categoryAttribute.repository.js"
+import withTransaction from "../helperFunctions/withTransaction.js";
 
 
 // variants -- relation with in the sense of before variants 
@@ -19,31 +18,80 @@ class VariantService {
   // dependency injection: the 4 repositories come from outside
   constructor(
     variantRepository,
-    variantAttributeValueRepository,
+    attributeRepository,
     productRepository,
-    attributeValueRepository,
-    categoryAttributeIns,
   ) {
     this.variantRepository = variantRepository;
-    this.variantAttributeValueRepository = variantAttributeValueRepository;
+    this.attributeRepository = attributeRepository;
+
     this.productRepository = productRepository;
-    this.attributeValueRepository = attributeValueRepository;
-    this.categoryAttribute = categoryAttributeIns;
   }
 
+  #formatVariants(data) {
+    const products = new Map();
+
+    for (const row of data) {
+
+      // Create product if it doesn't exist
+      if (!products.has(row.product_id)) {
+        products.set(row.product_id, {
+          id: row.product_id,
+          description: row.description,
+          image_url: row.image_url,
+          variants: []
+        });
+      }
+
+      const product = products.get(row.product_id);
+
+      // Check if variant already exists
+      let variant = product.variants.find(
+        v => v.id === row.variant_id
+      );
+
+      // Create variant if it doesn't exist
+      if (!variant) {
+        variant = {
+          id: row.variant_id,
+          quantity: row.quantity,
+          price: row.price,
+          attributes: []
+        };
+
+        product.variants.push(variant);
+      }
+
+      // Add attribute to the variant
+      variant.attributes.push({
+        name: row.name,
+        value: row.value
+      });
+    }
+
+    return Array.from(products.values());
+  }
 
   // -------- get all variants ------
 
   async findAll(query) {
     const { page, limit, offset } = getPagination(query);
+    const { product_id, search, searchColumn } = query;
+
     const { data, total } = await this.variantRepository.findAll({
       limit,
       offset,
-      isActive
+      search,
+      searchColumn,
+      isDeleted: false,
+      product_id
     });
-    // query.is_active may arrive as "true"/"false" (string) or a boolean
 
-    return { data, meta: buildMeta({ page, limit, total }) };
+    const formattedData = this.#formatVariants(data);
+
+    return {
+      data: formattedData,
+      meta: buildMeta({ page, limit, total })
+    };
   }
 
   // ---------- private helpers ----------
@@ -55,44 +103,6 @@ class VariantService {
   // product table has category id
   // category_attributes -- attribute_id
 
-  async #ensureAttributesAllowed(productId, attributes) {
-    const product = await this.productRepository.findById(productId)
-    // now product(object) row gave us the category id, take that id and fetch the attributes from category attributes table 
-    const categoryId = product.category_id;
-    const allowedAttributes = await this.categoryAttribute.findByCategoryId(categoryId);
-
-    // check the incoming attribute matches to data -- incoming == attributes --- to matched ==allowedAttributes
-    // --- attributes must be allowed, each attribute sent must be allowed and active in the category
-
-    for (const attribute of attributes) {
-      const row = allowedAttributes.find((element) => element.id === attribute.attribute_id)
-      if (!row) throw new ValidationError("Attribute is not allowed for this category");
-      if (!row.is_active) throw new ValidationError("Attribute is not active");
-    }
-
-
-    // ---- rule 2: every required attribute must be sent(only consider where required is ture) ---- -- given two arrays attributes, allowedAttributes (db)
-    const requiredRow = allowedAttributes.filter((element) => element.required)
-    for (const attribute of requiredRow) {
-      const required = attributes.some((element) => element.attribute_id === attribute.id)
-      if (!required) throw new ValidationError(`Attribute "${attribute.name}" is required`);
-    }
-
-  }
-
-  // each attribute_value must belong to the attribute it is sent with
-  async #ensureValuesMatchAttributes(attributes) {
-    for (const { attribute_id, attribute_value_id } of attributes) {
-      const value =
-        await this.attributeValueRepository.findById(attribute_value_id);
-      if (!value) throw new NotFoundError("attribute value not found");
-      if (value.attribute_id !== attribute_id) {
-        throw new ValidationError(
-          "attribute value does not belong to this attribute",
-        );
-      }
-    }
-  }
 
   // ---------- create (variant + its attribute links in ONE transaction) ----------
   // ----- product variant
@@ -106,27 +116,16 @@ class VariantService {
 
 
   async create(data) {
-    await this.#ensureProductExists(data.product_id);
-    await this.#ensureValuesMatchAttributes(data.attributes);
-    await this.#ensureAttributesAllowed(data.product_id, data.attributes);
+    return withTransaction(async (client) => {
+      await this.#ensureProductExists(data.product_id);
 
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
       const variant = await this.variantRepository.create(data, client);
-      await this.variantAttributeValueRepository.createMany(
-        variant.id,
-        data.attributes,
-        client,
-      );
-      await client.query("COMMIT");
-      return variant;
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release(); // always give the connection back to the pool
+      const attributes = await this.attributeRepository.bulkCreateAttributes(variant.id, data.attributes, client);
+
+
+      return [variant, attributes];
     }
+    )
   }
 
   // ---------- reads ----------
@@ -134,14 +133,25 @@ class VariantService {
     await this.#ensureProductExists(productId);
     return this.variantRepository.findByProductId(productId);
   }
-
   async getById(id) {
-    const variant = await this.variantRepository.findById(id);
-    if (!variant) throw new NotFoundError("variant not found");
+    const rows = await this.variantRepository.findById(id);
 
-    const attributes =
-      await this.variantAttributeValueRepository.findByVariantId(id);
-    return { ...variant, attributes };
+    if (!rows.length) {
+      throw new NotFoundError("variant not found");
+    }
+
+    return {
+      id: rows[0].id,
+      product_id: rows[0].product_id,
+      quantity: rows[0].quantity,
+      price: rows[0].price,
+
+      attributes: rows.map(row => ({
+        id: row.attribute_id,
+        name: row.attribute_name,
+        value: row.attribute_value
+      }))
+    };
   }
 
   // ---------- update (PATCH) ----------
@@ -153,35 +163,19 @@ class VariantService {
 
   // ---------- remove (links first, then the variant, in ONE transaction) ----------
   async remove(id) {
-    // entire transaction must run on the same connection.
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      await this.variantAttributeValueRepository.deleteByVariantId(id, client);
-      const deleted = await this.variantRepository.delete(id, client);
-      if (!deleted) throw new NotFoundError("variant not found"); // triggers ROLLBACK
-      await client.query("COMMIT");
-      return deleted;
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+    const deleted = await this.variantRepository.delete(id);
+    if (!deleted) throw new NotFoundError("variant not found"); // triggers ROLLBACK
+    return deleted;
   }
 }
 
 // ---------- create instances ----------
 const variantRepository = new VariantRepository();
-const variantAttributeValueRepository = new VariantAttributeValueRepository();
+const attributeRepository = new AttributeRepository()
 const productRepository = new ProductRepository();
-const attributeValueRepository = new AttributeValueRepository();
-const categoryAttribute = new CategoryAttributeRepository()
 
 export const variantService = new VariantService(
   variantRepository,
-  variantAttributeValueRepository,
+  attributeRepository,
   productRepository,
-  attributeValueRepository,
-  categoryAttribute,
 );

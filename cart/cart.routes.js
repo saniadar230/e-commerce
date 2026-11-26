@@ -1,5 +1,5 @@
 import express from "express";
-import * as cartController from "./cart.controller.js";
+import cartController from "./cart.controller.js"; // default export now
 import {
   addCartItemSchema,
   getCartSchema,
@@ -11,11 +11,7 @@ import { validate } from "../middleware/validate.js";
 
 const cartRouter = express.Router();
 
-cartRouter.get(
-  "/",
-  validate(getCartSchema, "body"),
-  cartController.getCart
-);
+cartRouter.get("/", validate(getCartSchema, "body"), cartController.getCart);
 
 cartRouter.post(
   "/items",

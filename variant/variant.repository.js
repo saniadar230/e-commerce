@@ -3,7 +3,7 @@ import pool from "../db/db.js";
 
 export class VariantRepository extends BaseRepository {
     constructor() {
-        super("variants", ["sku", "price", "stock"]);
+        super("variants", ["price", "quantity"]);
     }
 
     // client is optional: inside a transaction we pass the transaction's client

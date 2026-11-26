@@ -1,235 +1,166 @@
 import withTransaction from "../helperFunctions/withTransaction.js";
 import { ConflictError, NotFoundError } from "../helperFunctions/apiError.js";
-import pool from "../db/db.js";
+import CartRepository from "./cart.repository.js";
+import { getPagination, buildMeta } from "../common/pagination.js"; // adjust path
 
-export async function getCart(customer_id) {
-  // get all products from the cart
-  const cart = await pool.query(
-    `SELECT id FROM carts where customer_id = $1 AND status = 'active'`,
-    [customer_id]
-  );
 
-  const cart_id = cart.rows[0].id;
+class CartService {
+  constructor(cartRepository = new CartRepository()) {
+    this.cartRepository = cartRepository;
+  }
 
-  const cart_products = await pool.query(
-    `SELECT p.name, v.price, quantity FROM cart_products cp
-    INNER JOIN variants v
-    ON v.id = cp.variant_id
-    INNER JOIN products p
-    ON v.product_id = p.id
-    where customer_id = $1 AND status = 'active'`,
-    [customer_id]
-  );
+  // ===== private helpers (shared checks) =====
+  async #assertCustomerExists(customerId, options) {
+    const customer = await this.cartRepository.findActiveCustomer(customerId, options);
+    if (!customer) throw new NotFoundError("Customer not found");
+  }
 
-  return {
-    data: cart ? cart : [],
-  };
-}
+  async #getVariantOrThrow(variantId, options) {
+    console.log(variantId, options, '----------------- variant options')
+    const variant = await this.cartRepository.findVariant(variantId, options);
 
-export async function addCartItem(variant_id, customer_id) {
-  return withTransaction(async (client) => {
-    // 1. Check whether customer exists and is not deleted
-    const customer = await client.query(
-      `SELECT id
-       FROM customers
-       WHERE id = $1 AND is_deleted = false
-       FOR SHARE`,
-      [customer_id]
-    );
-    if (customer.rows.length === 0) {
-      throw new NotFoundError("Customer not found");
-    }
+    console.log("================ after create repo find varaint")
+    if (!variant) throw new NotFoundError("Variant not found");
+    return variant;
+  }
 
-    // 2. Check whether variant exists and is not deleted
-    const variant = await client.query(
-      `SELECT id, stock_quantity
-       FROM variants
-       WHERE id = $1 AND is_deleted = false
-       FOR SHARE`,
-      [variant_id]
-    );
-    if (variant.rows.length === 0) {
-      throw new NotFoundError("Variant not found");
-    }
+  async #getActiveCartOrThrow(customerId, options) {
+    const cart = await this.cartRepository.findActiveCart(customerId, {
+      ...options,
+      forUpdate: true,
+    });
+    if (!cart) throw new NotFoundError("Active cart not found");
+    return cart;
+  }
 
-    if (variant.rows[0].stock_quantity < 1) {
-      throw new ConflictError("Variant is out of stock");
-    }
+  // ===== get cart (paginated) =====
+  async getCart(customer_id, query) {
+    // page / limit / offset math lives in one place
+    const { page, limit, offset } = getPagination(query);
 
-    // 3. Find an existing active cart for this customer
-    const cart = await client.query(
-      `INSERT INTO carts (customer_id)
-       VALUES ($1)
-       ON CONFLICT (customer_id)
-       WHERE status = 'active'
-       DO UPDATE SET customer_id = $1
-       RETURNING id`,
-      [customer_id]
-    );
+    // 1. Find the active cart
+    const cart = await this.cartRepository.findActiveCart(customer_id);
 
-    cart_id = cart.rows[0].id;
+    // no cart yet = empty cart, not an error
+    if (!cart) return { data: [], meta: buildMeta({ page, limit, total: 0 }) };
 
-    // 5. Insert the item or increment quantity atomically
-    const result = await client.query(
-      `INSERT INTO cart_products (cart_id, variant_id, quantity)
-           VALUES ($1, $2, 1)
-           ON CONFLICT (cart_id, variant_id)
-           DO UPDATE SET
-             quantity = cart_products.quantity + 1,
-             updated_at = CURRENT_TIMESTAMP
-           WHERE cart_products.quantity < 10
-             AND cart_products.quantity < $3
-           RETURNING *`,
-      [cart_id, variant_id, variant.rows[0].stock_quantity]
-    );
+    // 2. Get this page of its products
+    const { data, total } = await this.cartRepository.findCartProducts(cart.id, {
+      limit,
+      offset,
+    });
 
-    if (result.rows.length === 0) {
-      throw new ConflictError(
-        "Cart quantity cannot exceed 10 or available inventory"
+    const meta = buildMeta({ page, limit, total });
+
+    // an empty result on page 1 is fine; only reject pages past the end
+    if (total > 0 && page > meta.totalPages)
+      throw new ValidationError(
+        `Page number cannot be greater than total number of pages: ${meta.totalPages}`
       );
-    }
 
-    await client.query(
-      `UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [cart_id]
-    );
+    return { data, meta };
+  }
 
-    return {
-      cart_id,
-      item: result.rows[0],
-    };
-  });
-}
+  // ===== add cart item =====
+  async addCartItem(variant_id, customer_id) {
+    return withTransaction(async (client) => {
+      // 1. Customer exists and is not deleted
 
-export async function updateCartItem(variant_id, customer_id, quantity) {
-  return withTransaction(async (client) => {
-    // 1. Check whether customer exists and is not deleted
-    const customer = await client.query(
-      `SELECT id
-       FROM customers
-       WHERE id = $1 AND is_deleted = false`,
-      [customer_id]
-    );
-    if (customer.rows.length === 0) {
-      throw new NotFoundError("Customer not found");
-    }
+      await this.#assertCustomerExists(customer_id, { client, forShare: true });
+      // 2. Variant exists and is not deleted
+      const variant = await this.#getVariantOrThrow(variant_id, { client });
+      if (variant.quantity < 1) {
+        throw new ConflictError("Variant is out of stock");
+      }
 
-    // 2. Check whether variant exists and is not deleted
-    const variant = await client.query(
-      `SELECT id, stock_quantity
-       FROM variants
-       WHERE id = $1 AND is_deleted = false
-       FOR SHARE
-       `,
-      [variant_id]
-    );
-    if (variant.rows.length === 0) {
-      throw new NotFoundError("Variant not found");
-    }
+      // 3. Find or create the active cart
+      const cart = await this.cartRepository.create(customer_id, { client });
+      const cart_id = cart.id;
 
-    if (quantity > variant.rows[0].stock_quantity) {
-      throw new ConflictError("Requested quantity exceeds available inventory");
-    }
-
-    const cart = await client.query(
-      `SELECT id FROM carts where customer_id = $1 AND status = 'active' FOR UPDATE`,
-      [customer_id]
-    );
-
-    if (cart.rows.length === 0) {
-      throw new NotFoundError("Active cart not found");
-    }
-
-    const cart_id = cart.rows[0].id;
-
-    let result = {};
-    if (quantity === 0) {
-      result = await client.query(
-        `DELETE FROM cart_products WHERE cart_id = $1 AND variant_id = $2 RETURNING *`,
-        [cart_id, variant_id]
+      // 4. Insert the item or increment quantity atomically
+      const item = await this.cartRepository.addItem(
+        cart_id,
+        variant_id,
+        variant.quantity,
+        { client }
       );
-    } else {
-      // Update the item
-      result = await client.query(
-        `UPDATE cart_products
-         SET quantity = $1,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE cart_id = $2
-         AND variant_id = $3
-         RETURNING *`,
-        [quantity, cart_id, variant_id]
+
+      if (!item) {
+        throw new ConflictError(
+          "Cart quantity cannot exceed 10 or available inventory"
+        );
+      }
+      await this.cartRepository.touch(cart_id, { client });
+
+      return { cart_id, item };
+    });
+  }
+
+  // ===== update item =====
+  async updateCartItem(variant_id, customer_id, quantity) {
+    return withTransaction(async (client) => {
+      // 1. Customer exists and is not deleted
+      await this.#assertCustomerExists(customer_id, { client });
+
+      // 2. Variant exists and is not deleted
+      const variant = await this.#getVariantOrThrow(variant_id, { client });
+
+      if (quantity > variant.quantity) {
+        throw new ConflictError("Requested quantity exceeds available inventory");
+      }
+
+      // 3. Active cart (locked)
+      const cart = await this.#getActiveCartOrThrow(customer_id, { client });
+      const cart_id = cart.id;
+
+      // 4a. quantity 0 removes the item, nothing left to return
+      if (quantity === 0) {
+        const removed = await this.cartRepository.removeItem(cart_id, variant_id, {
+          client,
+        });
+        if (!removed) throw new NotFoundError("Cart item not found");
+
+        await this.cartRepository.touch(cart_id, { client });
+
+        return { cart_id, item: null };
+      }
+
+      // 4b. anything else updates the item
+      const item = await this.cartRepository.updateItemQuantity(
+        cart_id,
+        variant_id,
+        quantity,
+        { client }
       );
-    }
+      if (!item) throw new NotFoundError("Cart item not found");
 
-    if (result.rows.length === 0) {
-      throw new NotFoundError("Cart item not found");
-    }
+      await this.cartRepository.touch(cart_id, { client });
 
-    await client.query(
-      `UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [cart_id]
-    );
+      return { cart_id, item };
+    });
+  }
 
-    return {
-      cart_id,
-      item: result.rows[0],
-    };
-  });
+  // ===== remove item =====
+  async removeCartItem(variant_id, customer_id) {
+    // 1. Customer exists and is not deleted
+    await this.#assertCustomerExists(customer_id);
+
+    // 2. Variant exists and is not deleted
+    await this.#getVariantOrThrow(variant_id);
+
+    // 3. Find the active cart
+    const cart = await this.#getActiveCartOrThrow(customer_id);
+    const cart_id = cart.id;
+
+    // 4. Delete the variant from the cart
+    const item = await this.cartRepository.removeItem(cart_id, variant_id);
+
+    if (!item) throw new NotFoundError("Cart item not found");
+
+    await this.cartRepository.touch(cart_id);
+
+    return { cart_id, item };
+  }
 }
 
-export async function removeCartItem(variant_id, customer_id) {
-  // 1. Check whether customer exists and is not deleted
-  const customer = await pool.query(
-    `SELECT id
-         FROM customers
-         WHERE id = $1 AND is_deleted = false`,
-    [customer_id]
-  );
-  if (customer.rows.length === 0) {
-    throw new NotFoundError("Customer not found");
-  }
-
-  // 2. Check whether variant exists and is not deleted
-  const variant = await pool.query(
-    `SELECT id
-     FROM variants
-     WHERE id = $1 AND is_deleted = false
-     FOR SHARE`,
-    [variant_id]
-  );
-  if (variant.rows.length === 0) {
-    throw new NotFoundError("Variant not found");
-  }
-
-  // 3. Find the active cart
-  const cart = await pool.query(
-    `SELECT id FROM carts where customer_id = $1 AND status = 'active' FOR UPDATE`,
-    [customer_id]
-  );
-
-  if (cart.rows.length === 0) {
-    throw new NotFoundError("Active cart not found");
-  }
-
-  const cart_id = cart.rows[0].id;
-
-  //4. Delete the variant from the cart
-  const result = await pool.query(
-    `DELETE FROM cart_products WHERE cart_id = $1 AND variant_id = $2 RETURNING *`,
-    [cart_id, variant_id]
-  );
-
-  if (result.rows.length === 0) {
-    throw new NotFoundError("Cart item not found");
-  }
-
-  await pool.query(
-    `UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-    [cart_id]
-  );
-
-  return {
-    cart_id,
-    item: result.rows[0],
-  };
-}
+export default CartService;

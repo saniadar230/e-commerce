@@ -1,13 +1,12 @@
 import express from "express";
-import customerRouter from "./customers/customer.routes.js";
-import cartRouter from "./cart/cart.routes.js";
+import customerRouter from "./features/customers/customer.routes.js";
+import cartRouter from "./features/cart/cart.routes.js";
 import {
   customerPaymentRouter,
   adminPaymentRouter,
   stripeWebhookRouter,
 } from "./payments/payment.routes.js";
-import { customerOrderRouter } from "./orders/order.routes.js";
-import { adminOrderRouter } from "./orders/order.routes.js";
+import { customerOrderRouter } from "./features/orders/order.routes.js";
 import cors from 'cors'
 import dotenv from "dotenv";
 
@@ -19,11 +18,11 @@ import {
   ValidationError,
 } from "./helperFunctions/apiError.js";
 import categoryRouter from "./categories/category.routes.js";
-import productRouter from "./products/product.routes.js";
+import productRouter from "./features/products/product.routes.js";
 import attributeRoutes from "./attributes/attribute.routes.js";
 import attributeValueRoutes from "./attributes/attributeValue.routes.js";
 
-import variantRoutes from "./variant/variant.routes.js"
+import variantRoutes from "./features/variant/variant.routes.js"
 
 import regionRoutes from "./regions/region.routes.js";
 import promotionRoutes from "./promotions/promotion.routes.js";
@@ -40,7 +39,9 @@ app.use(
 
 app.use(cors({ origin: 'http://localhost:5173' }))
 
-app.use(express.json());
+app.use(express.json({
+  limit: '100kb'
+}));
 
 // Customer Routes
 app.use("/customers", customerRouter);
@@ -48,9 +49,6 @@ app.use("/cart", cartRouter);
 app.use("/customer", customerPaymentRouter);
 app.use("/admin", adminPaymentRouter);
 app.use("/orders", customerOrderRouter);
-app.use("/admin/orders", adminOrderRouter);
-
-// app.use("/products", productRouter);
 
 // Category Routes
 app.use("/categories", categoryRouter);
@@ -73,6 +71,9 @@ app.use((req, res) => {
 
 // ===== postgres errors -> our own errors =====
 const mapDbError = (err) => {
+  console.log("Original error:", err);
+  console.log("Error code:", err.code);
+  console.log("Error detail:", err.detail);
   switch (err.code) {
     // unique violation (duplicate value)
     case "23505":

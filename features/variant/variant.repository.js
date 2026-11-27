@@ -1,5 +1,5 @@
-import { BaseRepository } from "../common/BaseRepository.js";
-import pool from "../db/db.js";
+import { BaseRepository } from "../../common/BaseRepository.js";
+import pool from "../../db/db.js";
 
 export class VariantRepository extends BaseRepository {
     constructor() {

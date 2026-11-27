@@ -1,5 +1,5 @@
-import { successReponse } from "../helperFunctions/apiResponse.js";
-import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
+import { successReponse } from "../../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../../helperFunctions/helperFunctions.js";
 import CustomerService from "./customer.service.js";
 
 class CustomerController {

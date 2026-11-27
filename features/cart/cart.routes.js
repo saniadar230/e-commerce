@@ -7,7 +7,7 @@ import {
   updateCartItemSchema,
   variantIdParamSchema,
 } from "./cart.schema.js";
-import { validate } from "../middleware/validate.js";
+import { validate } from "../../middleware/validate.js";
 
 const cartRouter = express.Router();
 

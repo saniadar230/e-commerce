@@ -1,8 +1,8 @@
 // ========= productRepository ===========
 // how to communicate with DB (products table)
 
-import { BaseRepository } from "../common/BaseRepository.js";
-import pool from "../db/db.js"
+import { BaseRepository } from "../../common/BaseRepository.js";
+import pool from "../../db/db.js"
 
 export class ProductRepository extends BaseRepository {
     // super access the base class constructor

@@ -4,8 +4,8 @@ import {
   createCustomerSchema,
   updateCustomerSchema,
 } from "./customer.schema.js";
-import { getListSchema, idSchema } from "../schemas/common.js";
-import { validate } from "../middleware/validate.js";
+import { getListSchema, idSchema } from "../../schemas/common.js";
+import { validate } from "../../middleware/validate.js";
 import customerController from "./customer.controller.js"; // default export now
 
 const customerRouter = express.Router();

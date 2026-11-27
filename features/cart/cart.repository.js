@@ -1,5 +1,5 @@
-import { BaseRepository } from "../common/BaseRepository.js"; // adjust path
-import pool from "../db/db.js";
+import { BaseRepository } from "../../common/BaseRepository.js"; // adjust path
+import pool from "../../db/db.js";
 
 // Every method takes an optional { client } so the service can run them
 // inside a transaction. Without one, it uses the pool, as before.
@@ -95,6 +95,22 @@ class CartRepository extends BaseRepository {
             total: Number(countResult.rows[0].count),
         };
     }
+
+    async findCartProductsWithoutPagination(client, cartId) {
+        // -- query 1: items of this page
+        const dataSql = `
+      SELECT cp.variant_id, p.name as productName, v.price as variantPrice, cp.quantity as cart_product_quantity, v.quantity as variant_stock
+      FROM cart_products cp
+      INNER JOIN variants v ON v.id = cp.variant_id
+      INNER JOIN products p ON p.id = v.product_id
+      WHERE cp.cart_id = $1
+      ORDER BY cp.created_at, cp.variant_id
+    `;
+        const dataResult = await client.query(dataSql, [cartId]);
+
+        return dataResult.rows
+    }
+
     async addItem(cartId, variantId, stockQuantity, { client = pool } = {}) {
         // -- query: insert item, or +1 quantity (max 10 and max stock)
         const sql = `

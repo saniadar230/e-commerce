@@ -4,8 +4,8 @@
 // sends the res
 
 import { productService } from "./product.service.js";
-import { successReponse } from "../helperFunctions/apiResponse.js";
-import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
+import { successReponse } from "../../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../../helperFunctions/helperFunctions.js";
 
 class ProductController {
   constructor(service) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { validate } from "../middleware/validate.js";
+import { validate } from "../../middleware/validate.js";
 import { variantController as controller } from "./variant.controller.js";
 import { createVariantSchema, updateVariantSchema, variantIdParamSchema, listVariantQuerySchema } from "./variant.validator.js";
 

@@ -2,9 +2,9 @@
 // product depends on category (products.category_id) -> service needs TWO repositories
 // both are injected through the constructor (dependency injection)
 
-import { NotFoundError, ConflictError } from "../helperFunctions/apiError.js";
+import { NotFoundError, ConflictError } from "../../helperFunctions/apiError.js";
 import { ProductRepository } from "./product.repository.js";
-import { CategoryRepository } from "../categories/category.repository.js";
+import { CategoryRepository } from "../../categories/category.repository.js";
 
 class ProductService {
   constructor(repository, categoryRepository) {

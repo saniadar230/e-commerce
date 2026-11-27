@@ -1,6 +1,6 @@
 import { variantService } from "./variant.service.js";
-import { successReponse } from "../helperFunctions/apiResponse.js";
-import { removeResponseFields } from "../helperFunctions/helperFunctions.js";
+import { successReponse } from "../../helperFunctions/apiResponse.js";
+import { removeResponseFields } from "../../helperFunctions/helperFunctions.js";
 
 class VariantController {
     constructor(service) {

@@ -1,12 +1,12 @@
-import pool from "../db/db.js";
-import { NotFoundError, ValidationError } from "../helperFunctions/apiError.js";
+import pool from "../../db/db.js";
+import { NotFoundError, ValidationError } from "../../helperFunctions/apiError.js";
 import { VariantRepository } from "./variant.repository.js";
 import { ProductRepository } from "../products/product.repository.js";
-import { AttributeRepository } from "../attributes/attribute.repository.js";
+import { AttributeRepository } from "../../attributes/attribute.repository.js";
 
-import { getPagination, buildMeta } from "../common/pagination.js";
+import { getPagination, buildMeta } from "../../common/pagination.js";
 // for check the allowed attributes for particular product
-import withTransaction from "../helperFunctions/withTransaction.js";
+import withTransaction from "../../helperFunctions/withTransaction.js";
 
 
 // variants -- relation with in the sense of before variants 

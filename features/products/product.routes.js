@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { validate } from "../middleware/validate.js"
+import { validate } from "../../middleware/validate.js"
 import { productController as controller } from "./product.controller.js";
 import {
   createProductSchema,

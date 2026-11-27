@@ -5,7 +5,7 @@ import { CampaignRepository } from "./campaign.repository.js";
 import { PromotionRepository } from "../promotions/promotion.repository.js";
 import { RegionRepository } from "../regions/region.repository.js";
 import { CategoryRepository } from "../categories/category.repository.js";
-import { ProductRepository } from "../products/product.repository.js";
+import { ProductRepository } from "../features/products/product.repository.js";
 
 class CampaignApplicationService {
   // one object instead of 7 positional arguments, so the order can't be mixed up

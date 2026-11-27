@@ -1,5 +1,5 @@
-import { NotFoundError, ConflictError, ValidationError } from "../helperFunctions/apiError.js";
-import { getPagination, buildMeta } from "../common/pagination.js"; // adjust path
+import { NotFoundError, ConflictError, ValidationError } from "../../helperFunctions/apiError.js";
+import { getPagination, buildMeta } from "../../common/pagination.js"; // adjust path
 import CustomerRepository from "./customer.repository.js";
 
 class CustomerService {
